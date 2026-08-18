@@ -1,0 +1,5 @@
+#include "speech.nvgt"
+
+void main() {
+	speak("NVGT is working. Testing.");
+}

@@ -1,0 +1,121 @@
+class GameMenu {
+	private AudioManager@ audio;
+	private string[] items;
+	private int cursor;
+	private bool active;
+
+	GameMenu(AudioManager@ a) {
+		@audio = @a;
+		cursor = 0;
+		active = false;
+	}
+
+	void set_items(const string[]&in new_items) {
+		items = new_items;
+		cursor = 0;
+	}
+
+	void reset() {
+		cursor = 0;
+		active = false;
+	}
+
+	void open() {
+		active = true;
+		cursor = 0;
+		audio.menu_click();
+		audio.speak("Меню: " + items[0] + ". Стрелки — навигация.", true);
+	}
+
+	void close() {
+		active = false;
+		audio.disconnect_sound();
+	}
+
+	bool is_active() {
+		return active;
+	}
+
+	bool move_up() {
+		if (cursor > 0) {
+			cursor--;
+			audio.menu_click();
+			audio.speak(items[cursor], true);
+			return true;
+		}
+		audio.terminal_beep();
+		return false;
+	}
+
+	bool move_down() {
+		if (cursor < int(items.length()) - 1) {
+			cursor++;
+			audio.menu_click();
+			audio.speak(items[cursor], true);
+			return true;
+		}
+		audio.terminal_beep();
+		return false;
+	}
+
+	int get_selected() {
+		return cursor;
+	}
+};
+
+class ContextMenu {
+	private AudioManager@ audio;
+	private string[] items;
+	private int cursor;
+	private bool active;
+
+	ContextMenu(AudioManager@ a) {
+		@audio = @a;
+		cursor = 0;
+		active = false;
+	}
+
+	void set_items(const string[]&in new_items) {
+		items = new_items;
+		cursor = 0;
+	}
+
+	void open() {
+		active = true;
+		cursor = 0;
+		audio.menu_click();
+		audio.speak("Контекстное меню. " + items[0] + ". Используйте стрелки.", true);
+	}
+
+	void close() {
+		active = false;
+	}
+
+	bool is_active() {
+		return active;
+	}
+
+	bool move_up() {
+		if (cursor > 0) {
+			cursor--;
+			audio.menu_click();
+			audio.speak(items[cursor], true);
+			return true;
+		}
+		return false;
+	}
+
+	bool move_down() {
+		if (cursor < int(items.length()) - 1) {
+			cursor++;
+			audio.menu_click();
+			audio.speak(items[cursor], true);
+			return true;
+		}
+		return false;
+	}
+
+	int get_selected() {
+		return cursor;
+	}
+};

@@ -1,0 +1,35 @@
+Logger@ __logger;
+
+void log(string msg) {
+	if (@__logger != null) __logger.log(msg);
+}
+
+class Logger {
+	private file f;
+	private bool active;
+
+	Logger() {
+		active = false;
+		@__logger = this;
+	}
+
+	void start() {
+		if (f.open("hacker_simulator.log", "w")) {
+			active = true;
+			log("Logger started");
+		}
+	}
+
+	void log(string msg) {
+		if (!active) return;
+		f.write("[" + TIME_SYSTEM_RUNNING_MILLISECONDS + "] " + msg + "\n");
+	}
+
+	void stop() {
+		log("Logger stopped");
+		if (active) {
+			f.close();
+			active = false;
+		}
+	}
+};

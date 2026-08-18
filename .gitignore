@@ -1,0 +1,8 @@
+*.zip
+*.log
+build_*.txt
+test_*.txt
+t2e.txt
+t2o.txt
+tse.txt
+tso.txt

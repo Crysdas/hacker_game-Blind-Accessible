@@ -1,0 +1,748 @@
+#include "audio.nvgt"
+#include "terminal.nvgt"
+#include "network.nvgt"
+#include "hacking.nvgt"
+#include "menu.nvgt"
+#include "story.nvgt"
+#include "sandbox.nvgt"
+#include "data.nvgt"
+#include "log.nvgt"
+#include "commands.nvgt"
+#pragma asset "sounds"
+
+enum FocusArea {
+	FOCUS_TERMINAL,
+	FOCUS_RESULTS
+};
+
+enum GameMode {
+	MODE_NONE,
+	MODE_STORY,
+	MODE_SANDBOX,
+	MODE_LAB
+};
+
+class HackerGame {
+	private AudioManager@ audio;
+	private Terminal@ terminal;
+	private Network@ network;
+	private HackingGame@ hacking;
+	private GameMenu@ game_menu;
+	private ContextMenu@ context_menu;
+	private StoryManager@ story;
+	private Sandbox@ sandbox;
+	private Tools@ tools;
+	private Logger@ log;
+
+	private FocusArea focus;
+	private GameMode mode;
+	private bool running;
+	private int current_server;
+	private bool connected;
+	private string cmd_buffer;
+
+	private Command@[] commands;
+	private ScanCommand@ cmd_scan;
+	private ConnectCommand@ cmd_connect;
+	private EnumCommand@ cmd_enum;
+	private BruteforceCommand@ cmd_bruteforce;
+	private CrackCommand@ cmd_crack;
+	private FirewallCommand@ cmd_firewall;
+	private SpamCommand@ cmd_spam;
+	private DownloadCommand@ cmd_download;
+	private HelpCommand@ cmd_help;
+	private DisconnectCommand@ cmd_disconnect;
+
+	HackerGame() {
+		@log = Logger();
+		log.start();
+		log.log("HackerGame constructor");
+
+		@audio = AudioManager();
+		try {
+			audio.load_sounds();
+			log.log("Audio loaded OK");
+		} catch {
+			log.log("Audio load FAILED: " + get_exception_info());
+		}
+
+		@terminal = Terminal(@audio);
+		@network = Network();
+		@hacking = HackingGame(@audio);
+		@game_menu = GameMenu(@audio);
+		@context_menu = ContextMenu(@audio);
+		@story = StoryManager();
+		@sandbox = Sandbox(@audio);
+		@tools = Tools();
+		log.log("All subsystems initialized");
+
+		@cmd_scan = ScanCommand();
+		@cmd_connect = ConnectCommand();
+		@cmd_enum = EnumCommand();
+		@cmd_bruteforce = BruteforceCommand();
+		@cmd_crack = CrackCommand();
+		@cmd_firewall = FirewallCommand();
+		@cmd_spam = SpamCommand();
+		@cmd_download = DownloadCommand();
+		@cmd_help = HelpCommand();
+		@cmd_disconnect = DisconnectCommand();
+
+		commands.resize(10);
+		@commands[0] = @cmd_scan;
+		@commands[1] = @cmd_connect;
+		@commands[2] = @cmd_enum;
+		@commands[3] = @cmd_bruteforce;
+		@commands[4] = @cmd_crack;
+		@commands[5] = @cmd_firewall;
+		@commands[6] = @cmd_spam;
+		@commands[7] = @cmd_download;
+		@commands[8] = @cmd_help;
+		@commands[9] = @cmd_disconnect;
+
+		for (uint i = 0; i < commands.length(); i++) {
+			commands[i].setup(@audio, @network, @hacking, @story, @sandbox);
+		}
+
+		focus = FOCUS_TERMINAL;
+		mode = MODE_NONE;
+		running = true;
+		current_server = -1;
+		connected = false;
+		cmd_buffer = "";
+		log.log("Constructor complete");
+	}
+
+	void run() {
+		log.log("run()");
+		try {
+			show_splash();
+			show_title();
+
+			while (running) {
+				wait(5);
+				handle_input();
+			}
+		} catch {
+			log.log("CRASH: " + get_exception_info());
+		}
+		log.log("Game loop ended");
+		destroy_window();
+		log.stop();
+	}
+
+	private void show_splash() {
+		log.log("show_splash()");
+		show_window("Hacker Simulator: Zero Day");
+		set_application_name("Hacker Simulator: Zero Day");
+		audio.power_up();
+		wait(300);
+		audio.speak("Dich Maker Team", true);
+		wait(500);
+		audio.success_beep();
+		wait(1500);
+	}
+
+	private void show_title() {
+		log.log("show_title()");
+		audio.speak("Hacker Simulator: Zero Day", true);
+		wait(500);
+		show_main_menu();
+	}
+
+	private void show_main_menu() {
+		log.log("show_main_menu()");
+		string[] items = {"Сюжет — 10 миссий", "Песочница — свободная игра", "Лаборатория — тренировка", "Выход"};
+		game_menu.set_items(items);
+		game_menu.open();
+		mode = MODE_NONE;
+
+		while (game_menu.is_active()) {
+			wait(5);
+			if (key_pressed(KEY_UP)) game_menu.move_up();
+			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_RETURN)) {
+				int sel = game_menu.get_selected();
+				game_menu.close();
+				log.log("Main menu selected: " + sel);
+				if (sel == 0) start_story();
+				else if (sel == 1) start_sandbox();
+				else if (sel == 2) start_lab();
+				else if (sel == 3) {
+					log.log("Quit selected");
+					running = false;
+				}
+				return;
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				if (mode != MODE_NONE) {
+					game_menu.close();
+					return;
+				}
+			}
+			if (key_pressed(KEY_LEFT)) {
+				audio.history_back();
+			}
+			if (key_pressed(KEY_RIGHT)) {
+				audio.history_forward();
+			}
+		}
+	}
+
+	private void start_story() {
+		log.log("start_story()");
+		mode = MODE_STORY;
+		audio.speak("Сюжетный режим. Вы хакер-фрилансер. Ваш клиент свяжется с вами.", true);
+		wait(500);
+		Mission@ m = story.get_current_mission();
+		if (@m != null) {
+			log.log("Mission: " + m.title);
+			audio.speak("Миссия " + (story.get_current_index() + 1) + ": " + m.title, true);
+			wait(300);
+			audio.speak(m.description, true);
+		} else {
+			log.log("ERROR: Mission is null!");
+		}
+		begin_terminal();
+	}
+
+	private void start_sandbox() {
+		log.log("start_sandbox()");
+		mode = MODE_SANDBOX;
+		set_sandbox_params();
+		init_sandbox_network();
+		begin_terminal();
+	}
+
+	private void set_sandbox_params() {
+		string[] scenario_types = {"Сеть — взлом серверов", "Люди — социальная инженерия", "Системы — взлом инфраструктуры"};
+		string target_type = "server";
+		int servers = 5, ids = 1;
+
+		audio.speak("Выберите сценарий: стрелки, Enter — подтвердить.", true);
+		wait(300);
+		int sel = 0;
+		bool sc_done = false;
+		while (!sc_done) {
+			wait(5);
+			if (key_pressed(KEY_UP)) { sel = sel > 0 ? sel - 1 : 2; audio.speak(scenario_types[sel], true); wait(120); }
+			if (key_pressed(KEY_DOWN)) { sel = sel < 2 ? sel + 1 : 0; audio.speak(scenario_types[sel], true); wait(120); }
+			if (key_pressed(KEY_RETURN)) {
+				if (sel == 0) target_type = "server";
+				else if (sel == 1) target_type = "person";
+				else target_type = "system";
+				sc_done = true;
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				target_type = "server"; sc_done = true;
+			}
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+		}
+
+		audio.speak("Число целей: стрелки, Enter — подтвердить.", true);
+		wait(200);
+		bool done = false;
+		while (!done) {
+			wait(5);
+			if (key_pressed(KEY_UP)) {
+				servers = servers < 20 ? servers + 1 : 3;
+				audio.speak("" + servers + " целей", true);
+				wait(120);
+			}
+			if (key_pressed(KEY_DOWN)) {
+				servers = servers > 3 ? servers - 1 : 20;
+				audio.speak("" + servers + " целей", true);
+				wait(120);
+			}
+			if (key_pressed(KEY_RETURN)) {
+				audio.speak("Сложность защиты: стрелки — изменить, Enter — готово.", true);
+				wait(200);
+				bool done_ids = false;
+				while (!done_ids) {
+					wait(5);
+					if (key_pressed(KEY_UP)) {
+						ids = ids < 5 ? ids + 1 : 0;
+						audio.speak("Сложность " + ids, true);
+						wait(120);
+					}
+					if (key_pressed(KEY_DOWN)) {
+						ids = ids > 0 ? ids - 1 : 5;
+						audio.speak("Сложность " + ids, true);
+						wait(120);
+					}
+					if (key_pressed(KEY_RETURN)) {
+						done_ids = true;
+					}
+					if (key_pressed(KEY_ESCAPE)) {
+						audio.speak("Настройка отменена", true);
+						servers = 5; ids = 1; target_type = "server";
+						done_ids = true;
+					}
+					if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+					if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+				}
+				done = true;
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				audio.speak("Настройка отменена", true);
+				servers = 5; ids = 1; target_type = "server";
+				done = true;
+			}
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+		}
+		sandbox.configure(servers, ids);
+		string type_name = target_type == "person" ? "социальной инженерии" : target_type == "system" ? "систем" : "серверов";
+		sandbox.set_target_type(target_type);
+		sandbox.start();
+		audio.speak("Песочница: " + servers + " целей, тип: " + type_name + ", сложность " + ids + ".", true);
+	}
+
+	private void init_sandbox_network() {
+		network.generate_scenario(sandbox.get_server_count(), sandbox.get_target_type());
+		wait(200);
+		audio.speak("Сгенерировано " + sandbox.get_server_count() + " целей.", false);
+	}
+
+	private void start_lab() {
+		log.log("start_lab()");
+		mode = MODE_LAB;
+		audio.speak("Лаборатория. Тренировка навыков взлома.", true);
+		wait(200);
+		show_lab_menu();
+	}
+
+	private void show_lab_menu() {
+		string[] items = {"Подбор пароля (bruteforce)", "Взлом шифрования (crack)", "Обход фаервола (firewall)", "Сканирование портов", "Вернуться в меню"};
+		game_menu.set_items(items);
+		game_menu.open();
+
+		while (game_menu.is_active()) {
+			wait(5);
+			if (key_pressed(KEY_UP)) game_menu.move_up();
+			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_RETURN)) {
+				int sel = game_menu.get_selected();
+				game_menu.close();
+				if (sel == 0) {
+					audio.speak("Тренировка подбора пароля. Сложность: 3.", true);
+					hacking.bruteforce(3);
+					show_lab_menu();
+				} else if (sel == 1) {
+					audio.speak("Тренировка взлома шифрования. Сложность: 3.", true);
+					hacking.crack_encryption(3);
+					show_lab_menu();
+				} else if (sel == 2) {
+					audio.speak("Тренировка обхода фаервола. Сложность: 3.", true);
+					hacking.firewall_bypass(3);
+					show_lab_menu();
+				} else if (sel == 3) {
+					hacking.port_scan(5);
+					show_lab_menu();
+				} else if (sel == 4) {
+					show_main_menu();
+				}
+				return;
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				game_menu.close();
+				show_main_menu();
+				return;
+			}
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+		}
+	}
+
+	private void init_terminal_commands() {
+		terminal.add_command_silent("scan");
+		terminal.add_command_silent("connect");
+		terminal.add_command_silent("enum");
+		terminal.add_command_silent("firewall");
+		terminal.add_command_silent("bruteforce");
+		terminal.add_command_silent("crack");
+		terminal.add_command_silent("download");
+		terminal.add_command_silent("spam");
+		terminal.add_command_silent("disconnect");
+		terminal.add_command_silent("help");
+	}
+
+	private void begin_terminal() {
+		terminal.clear();
+		terminal.set_hostname("localhost");
+		if (terminal.command_count() == 0) {
+			init_terminal_commands();
+		}
+		audio.speak("Терминал готов. Стрелки — выбрать, Enter — выполнить. Клавиши: S E C F B K M D X H. Tab — навигация.", true);
+	}
+
+	private void handle_input() {
+		if (key_pressed(KEY_LEFT)) {
+			audio.history_back();
+			wait(100);
+			return;
+		}
+		if (key_pressed(KEY_RIGHT)) {
+			audio.history_forward();
+			wait(100);
+			return;
+		}
+
+		if (context_menu.is_active()) {
+			handle_context_menu();
+			return;
+		}
+		if (game_menu.is_active()) return;
+
+		if (key_pressed(KEY_APPLICATION)) {
+			show_context_menu();
+			return;
+		}
+
+		if (key_pressed(KEY_TAB)) {
+			if (focus == FOCUS_TERMINAL) {
+				focus = FOCUS_RESULTS;
+				audio.terminal_click();
+				audio.speak("Результаты", true);
+			} else {
+				focus = FOCUS_TERMINAL;
+				audio.terminal_click();
+				audio.speak("Ввод команд", true);
+			}
+			wait(150);
+			return;
+		}
+		if (key_pressed(KEY_ESCAPE)) {
+			if (connected) {
+				disconnect();
+			} else {
+				show_main_menu();
+			}
+			return;
+		}
+
+		if (focus == FOCUS_TERMINAL) {
+			handle_terminal_nav();
+		} else if (focus == FOCUS_RESULTS) {
+			handle_results_nav();
+		}
+	}
+
+	private void handle_terminal_nav() {
+		if (key_pressed(KEY_UP) || key_pressed(KEY_LEFTBRACKET)) {
+			terminal.move_up();
+			return;
+		}
+		if (key_pressed(KEY_DOWN) || key_pressed(KEY_RIGHTBRACKET)) {
+			terminal.move_down();
+			return;
+		}
+		if (key_pressed(KEY_RETURN)) {
+			if (terminal.has_commands()) {
+				string cmd = terminal.get_current();
+				terminal.execute();
+				run_command(cmd);
+			}
+			return;
+		}
+
+		string cmd_name = "";
+		if (key_pressed(KEY_S)) { cmd_name = "scan"; }
+		else if (key_pressed(KEY_C)) { cmd_name = "connect"; }
+		else if (key_pressed(KEY_E)) { cmd_name = "enum"; }
+		else if (key_pressed(KEY_F)) { cmd_name = "firewall"; }
+		else if (key_pressed(KEY_B)) { cmd_name = "bruteforce"; }
+		else if (key_pressed(KEY_K)) { cmd_name = "crack"; }
+		else if (key_pressed(KEY_M)) { cmd_name = "spam"; }
+		else if (key_pressed(KEY_D)) { cmd_name = "download"; }
+		else if (key_pressed(KEY_X)) { cmd_name = "disconnect"; }
+		else if (key_pressed(KEY_H)) { cmd_name = "help"; }
+
+		if (cmd_name != "") {
+			terminal.add_command_silent(cmd_name);
+			audio.speak(cmd_name, true);
+			wait(150);
+			run_command(cmd_name);
+		}
+	}
+
+	private void run_command(string name) {
+		log.log("run_command: " + name);
+
+		if (name == "help") {
+			cmd_help.execute(mode_to_string(), connected, network.get_current());
+			return;
+		}
+
+		if (name == "disconnect") {
+			cmd_disconnect.execute(mode_to_string(), connected, network.get_current());
+			if (connected) {
+				connected = false;
+				terminal.set_hostname("localhost");
+				terminal.clear();
+				focus = FOCUS_TERMINAL;
+			}
+			return;
+		}
+
+		if (name == "scan") {
+			// Don't scan if connected to a compromised server
+			if (connected) {
+				Server@ s = network.get_current();
+				if (@s != null && s.compromised) {
+					audio.terminal_beep();
+					audio.speak("Сервер уже взломан. Отключитесь (X) для сканирования новых целей.", true);
+					return;
+				}
+				// Disconnect before scanning new network
+				disconnect();
+			}
+
+			cmd_scan.execute(mode_to_string(), connected, network.get_current());
+
+			int count;
+			if (mode == MODE_STORY) {
+				Mission@ m = story.get_current_mission();
+				count = m is null ? 3 : m.target_count + 1;
+				network.generate(count);
+			} else if (mode == MODE_SANDBOX) {
+				count = sandbox.get_server_count();
+				network.generate_scenario(count, sandbox.get_target_type());
+			} else {
+				count = 3;
+				network.generate(count);
+			}
+			wait(300);
+			audio.speak("Найдено " + network.server_count() + " серверов.", false);
+			for (int i = 0; i < network.server_count(); i++) {
+				Server@ s = network.get_server(i);
+				if (@s != null) {
+					wait(200);
+					audio.terminal_click();
+					audio.speak("Сервер " + (i + 1) + ": " + s.hostname + " [" + s.ip + "]", true);
+				}
+			}
+			wait(150);
+			focus = FOCUS_RESULTS;
+			current_server = 0;
+			Server@ s = network.get_server(0);
+			if (@s != null) audio.speak("Выбран: " + s.hostname, false);
+
+			// In sandbox mode after scan, add more servers if pool getting low
+			if (mode == MODE_SANDBOX) {
+				check_sandbox_refill();
+			}
+			return;
+		}
+
+		if (name == "connect") {
+			if (current_server < 0 || network.server_count() == 0) {
+				audio.error_beep();
+				audio.speak("Нет серверов. Сначала scan.", true);
+				return;
+			}
+			Server@ s = network.get_server(current_server);
+			if (@s == null) return;
+			if (s.compromised) {
+				audio.speak("Сервер уже взломан. Выберите другой.", true);
+				return;
+			}
+			terminal.set_hostname(s.hostname);
+			connected = true;
+			network.set_current(current_server);
+			audio.access_granted();
+			audio.speak("Подключён к " + s.hostname + ". Защита: фаервол " + s.firewall_strength + ", шифрование " + s.encryption_level + ".", true);
+			return;
+		}
+
+		Server@ cur = network.get_current();
+		if (name == "enum") { cmd_enum.execute(mode_to_string(), connected, cur); }
+		else if (name == "firewall") { cmd_firewall.execute(mode_to_string(), connected, cur); }
+		else if (name == "bruteforce") {
+			if (cur is null || !connected) {
+				audio.error_beep();
+				audio.speak("Нет подключения.", true);
+				return;
+			}
+			cmd_bruteforce.execute(mode_to_string(), connected, cur);
+		}
+		else if (name == "spam") { cmd_spam.execute(mode_to_string(), connected, cur); }
+		else if (name == "crack") {
+			bool ok = cmd_crack.execute(mode_to_string(), connected, cur);
+			if (ok && mode == MODE_SANDBOX) {
+				check_sandbox_refill();
+			}
+		}
+		else if (name == "download") {
+			bool ok = cmd_download.execute(mode_to_string(), connected, cur);
+			if (ok && mode == MODE_STORY) {
+				Mission@ m = story.get_current_mission();
+				if (@m != null) {
+					story.complete_mission(story.get_current_index());
+					audio.speak("Миссия " + (story.get_current_index() + 1) + " выполнена. Репутация: " + story.get_reputation(), true);
+					if (story.has_next()) {
+						story.advance();
+						Mission@ next = story.get_current_mission();
+						if (@next != null) {
+							audio.speak("Новая миссия: " + next.title + ". " + next.description, true);
+						}
+						// Disconnect so player can scan new targets
+						disconnect();
+					} else {
+						audio.speak("Все миссии пройдены! Вы — мастер хакер.", true);
+						audio.success_beep();
+					}
+				}
+			}
+			if (ok && mode == MODE_SANDBOX) {
+				audio.speak("Данные скачаны. Ищите новый сервер.", true);
+				check_sandbox_refill();
+			}
+		}
+	}
+
+	// Refill sandbox: if most servers compromised, generate new ones
+	private void check_sandbox_refill() {
+		if (mode != MODE_SANDBOX) return;
+		int total = network.server_count();
+		int compromised = 0;
+		for (int i = 0; i < total; i++) {
+			Server@ s = network.get_server(i);
+			if (@s != null && s.compromised) compromised++;
+		}
+		if (compromised >= total - 1 && total >= 2) {
+			string type_name = sandbox.get_target_type();
+			audio.speak("Большинство целей взломано. Генерирую новые...", true);
+			wait(300);
+			audio.power_up();
+			network.generate_scenario(sandbox.get_server_count(), type_name);
+			audio.speak("Новая сеть: " + sandbox.get_server_count() + " целей.", true);
+			if (connected) {
+				connected = false;
+				terminal.set_hostname("localhost");
+				terminal.clear();
+				focus = FOCUS_TERMINAL;
+			}
+			current_server = 0;
+		}
+	}
+
+	private string mode_to_string() {
+		if (mode == MODE_STORY) return "story";
+		if (mode == MODE_SANDBOX) return "sandbox";
+		if (mode == MODE_LAB) return "lab";
+		return "none";
+	}
+
+	private void handle_results_nav() {
+		if (key_pressed(KEY_UP) || key_pressed(KEY_LEFTBRACKET)) {
+			if (current_server > -1) {
+				current_server = current_server > 0 ? current_server - 1 : 0;
+				Server@ s = network.get_server(current_server);
+				if (@s != null) {
+					string status = s.compromised ? ", взломан" : "";
+					audio.speak("Сервер " + s.hostname + " [" + s.ip + "]" + status, true);
+				}
+			} else {
+				audio.terminal_beep();
+			}
+			wait(120);
+		}
+		if (key_pressed(KEY_DOWN) || key_pressed(KEY_RIGHTBRACKET)) {
+			if (current_server > -1 && current_server < network.server_count() - 1) {
+				current_server++;
+				Server@ s = network.get_server(current_server);
+				if (@s != null) {
+					string status = s.compromised ? ", взломан" : "";
+					audio.speak("Сервер " + s.hostname + " [" + s.ip + "]" + status, true);
+				}
+			} else {
+				audio.terminal_beep();
+			}
+			wait(120);
+		}
+	}
+
+	private void disconnect() {
+		audio.disconnect_sound();
+		terminal.set_hostname("localhost");
+		connected = false;
+		terminal.clear();
+		focus = FOCUS_TERMINAL;
+		audio.speak("Отключено.", true);
+	}
+
+	private void show_context_menu() {
+		string[] items;
+		if (mode == MODE_STORY) {
+			items = {"Вернуться в терминал", "Статус миссии", "Главное меню"};
+		} else if (mode == MODE_SANDBOX) {
+			items = {"Вернуться в терминал", "Настройка песочницы", "Главное меню"};
+		} else if (mode == MODE_LAB) {
+			items = {"Вернуться в терминал", "Лаборатория", "Главное меню"};
+		} else {
+			items = {"Вернуться в терминал", "Главное меню"};
+		}
+		context_menu.set_items(items);
+		context_menu.open();
+	}
+
+	private void handle_context_menu() {
+		if (key_pressed(KEY_UP)) {
+			context_menu.move_up();
+			wait(120);
+		}
+		if (key_pressed(KEY_DOWN)) {
+			context_menu.move_down();
+			wait(120);
+		}
+		if (key_pressed(KEY_RETURN)) {
+			int sel = context_menu.get_selected();
+			context_menu.close();
+			int total = mode == MODE_NONE ? 2 : 3;
+			if (sel == total - 1) {
+				mode = MODE_NONE;
+				disconnect();
+				show_main_menu();
+			} else if (sel == 1) {
+				if (mode == MODE_STORY) show_mission_status();
+				else if (mode == MODE_SANDBOX) {
+					if (connected) disconnect();
+					set_sandbox_params();
+					init_sandbox_network();
+					begin_terminal();
+				} else if (mode == MODE_LAB) {
+					show_lab_menu();
+				}
+			}
+			return;
+		}
+		if (key_pressed(KEY_ESCAPE)) {
+			context_menu.close();
+		}
+		if (key_pressed(KEY_LEFT)) {
+			audio.history_back();
+		}
+		if (key_pressed(KEY_RIGHT)) {
+			audio.history_forward();
+		}
+	}
+
+	private void show_mission_status() {
+		audio.speak("Миссия " + (story.get_current_index() + 1) + " из " + story.get_mission_count(), true);
+		Mission@ m = story.get_current_mission();
+		if (@m != null) {
+			audio.speak("Текущая: " + m.title, true);
+		}
+		int completed_count = 0;
+		for (int i = 0; i < story.get_mission_count(); i++) {
+			if (story.is_completed(i)) completed_count++;
+		}
+		audio.speak("Выполнено: " + completed_count + ". Репутация: " + story.get_reputation(), true);
+	}
+};
+
+void main() {
+	HackerGame game;
+	game.run();
+}

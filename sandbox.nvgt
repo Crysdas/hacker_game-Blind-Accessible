@@ -1,0 +1,54 @@
+class Sandbox {
+	private AudioManager@ audio;
+	private int server_count;
+	private int ids_level;
+	private string target_type;
+	private bool active;
+
+	Sandbox(AudioManager@ a) {
+		@audio = @a;
+		server_count = 5;
+		ids_level = 1;
+		target_type = "server";
+		active = false;
+	}
+
+	void start() {
+		active = true;
+		audio.speak("Песочница запущена. Целей: " + server_count + ", сложность: " + ids_level + ".", true);
+	}
+
+	void stop() {
+		active = false;
+		audio.speak("Песочница завершена", true);
+	}
+
+	bool is_active() {
+		return active;
+	}
+
+	void configure(int servers, int ids) {
+		server_count = servers;
+		ids_level = ids;
+		if (server_count < 3) server_count = 3;
+		if (server_count > 20) server_count = 20;
+		if (ids_level < 0) ids_level = 0;
+		if (ids_level > 5) ids_level = 5;
+	}
+
+	void set_target_type(string type) {
+		target_type = type;
+	}
+
+	string get_target_type() {
+		return target_type;
+	}
+
+	int get_server_count() {
+		return server_count;
+	}
+
+	int get_ids_level() {
+		return ids_level;
+	}
+};

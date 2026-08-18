@@ -1,0 +1,14 @@
+#include "speech.nvgt"
+
+void main() {
+	speak("Testing sound generation");
+	sound@ s = sound_generator(440.0, 0.5);
+	if (@s != null) {
+		speak("Sound created");
+		s.play();
+		wait(1000);
+		s.close();
+	} else {
+		speak("Sound is null");
+	}
+}

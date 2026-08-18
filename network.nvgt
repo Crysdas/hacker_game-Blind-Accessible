@@ -1,0 +1,138 @@
+class Server {
+	string ip;
+	string hostname;
+	int security_level;
+	int firewall_strength;
+	int encryption_level;
+	string[] open_ports;
+	string[] files;
+	bool compromised;
+	bool alerted;
+	bool firewall_bypassed;
+	bool password_cracked;
+	string target_type;
+	int trust_level;
+	int monitoring_level;
+
+	Server() {
+		ip = "";
+		hostname = "";
+		security_level = 1;
+		firewall_strength = 1;
+		encryption_level = 1;
+		compromised = false;
+		alerted = false;
+		firewall_bypassed = false;
+		password_cracked = false;
+		target_type = "server";
+		trust_level = 5;
+		monitoring_level = 1;
+	}
+
+	void generate_random() {
+		ip = "192.168." + random(1, 254) + "." + random(1, 254);
+		security_level = random(2, 6);
+		firewall_strength = random(2, security_level + 1);
+		encryption_level = random(1, security_level);
+
+		int port_count = random(2, 5);
+		for (int i = 0; i < port_count; i++) {
+			open_ports.insert_last("" + random(20, 65535));
+		}
+
+		int file_count = random(2, 5);
+		string[] file_types = {"data.db", "config.ini", "key.asc", "log.txt", "auth.db", "backup.zip", "notes.txt", "passwd", "credentials.csv", "shadow"};
+		for (int i = 0; i < file_count; i++) {
+			files.insert_last(file_types[random(0, file_types.length() - 1)]);
+		}
+	}
+
+	void generate_person() {
+		string[] first_names = {"John", "Jane", "Alex", "Sam", "Chris", "Pat", "Morgan", "Taylor", "Jordan", "Riley"};
+		string[] last_names = {"Smith", "Doe", "Brown", "Wilson", "Lee", "Kim", "Chen", "Patel", "Garcia", "Jones"};
+		hostname = first_names[random(0, first_names.length() - 1)] + " " + last_names[random(0, last_names.length() - 1)];
+		ip = "—";
+		target_type = "person";
+		security_level = random(2, 5);
+		firewall_strength = random(1, security_level);  // trust level
+		encryption_level = random(1, security_level);    // caution level
+		trust_level = firewall_strength;
+		monitoring_level = 1;
+
+		string[] info = {"email_inbox", "contacts.db", "browser_history", "messages", "photos", "calendar", "notes", "bank_statement", "passwords_txt"};
+		int info_count = random(2, 4);
+		for (int i = 0; i < info_count; i++) {
+			files.insert_last(info[random(0, info.length() - 1)]);
+		}
+	}
+
+	void generate_system() {
+		string[] sys_names = {"DC-01", "NAS-core", "MAINFRAME", "TERMINAL-4", "DB-cluster", "APP-srv", "MONITOR", "CONTROL", "HONEYPOT", "VAULT"};
+		hostname = sys_names[random(0, sys_names.length() - 1)];
+		ip = "10.0." + random(1, 254) + "." + random(1, 254);
+		target_type = "system";
+		security_level = random(3, 6);
+		firewall_strength = random(2, security_level + 2);
+		encryption_level = random(2, security_level + 1);
+		monitoring_level = random(1, 4);
+
+		string[] sys_files = {"kernel_log", "process_table", "netstat", "cron_jobs", "certificates", "firewall_rules", "audit_trail", "shadow_db", "config_backup", "encryption_keys"};
+		int fcount = random(2, 5);
+		for (int i = 0; i < fcount; i++) {
+			files.insert_last(sys_files[random(0, sys_files.length() - 1)]);
+		}
+	}
+
+	void alert_ids() {
+		alerted = true;
+		monitoring_level = monitoring_level + 1;
+		if (monitoring_level > 5) monitoring_level = 5;
+	}
+};
+
+class Network {
+	private Server[] servers;
+	private uint current_server;
+
+	Network() {
+		current_server = 0;
+	}
+
+	void generate(int count) {
+		servers.resize(0);
+		for (int i = 0; i < count; i++) {
+			Server s;
+			s.generate_random();
+			servers.insert_last(s);
+		}
+	}
+
+	void generate_scenario(int count, string type) {
+		servers.resize(0);
+		for (int i = 0; i < count; i++) {
+			Server s;
+			s.target_type = type;
+			if (type == "person") s.generate_person();
+			else if (type == "system") s.generate_system();
+			else s.generate_random();
+			servers.insert_last(s);
+		}
+	}
+
+	int server_count() {
+		return servers.length();
+	}
+
+	Server@ get_server(int index) {
+		if (index < 0 || index >= int(servers.length())) return null;
+		return @servers[index];
+	}
+
+	Server@ get_current() {
+		return get_server(current_server);
+	}
+
+	void set_current(int index) {
+		if (index >= 0 && index < int(servers.length())) current_server = index;
+	}
+};

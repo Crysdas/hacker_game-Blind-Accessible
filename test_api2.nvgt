@@ -1,0 +1,16 @@
+#include "speech.nvgt"
+
+void main() {
+	speak("Testing NVGT API");
+	wait(500);
+	
+	// Test keyboard
+	while (true) {
+		wait(5);
+		if (key_pressed(KEY_ESCAPE)) { speak("Escape pressed"); break; }
+		if (key_pressed(KEY_RETURN)) { speak("Enter pressed"); }
+		if (key_pressed(KEY_TAB)) { speak("Tab pressed"); wait(200); }
+		if (key_pressed(KEY_UP)) { speak("Up"); wait(100); }
+		if (key_pressed(KEY_DOWN)) { speak("Down"); wait(100); }
+	}
+}

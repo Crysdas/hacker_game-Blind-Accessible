@@ -1,0 +1,185 @@
+class Mission {
+	string title;
+	string description;
+	int target_count;
+	int complexity;
+	string target_type;
+	bool requires_stealth;
+	string consequence_flag;
+
+	Mission() {
+		title = "";
+		description = "";
+		target_count = 1;
+		complexity = 1;
+		target_type = "server";
+		requires_stealth = false;
+		consequence_flag = "";
+	}
+};
+
+class StoryManager {
+	private Mission[] missions;
+	private int current_mission;
+	private int reputation;
+	private bool alarm_raised;
+	private bool[] completed;
+
+	StoryManager() {
+		current_mission = 0;
+		reputation = 0;
+		alarm_raised = false;
+		completed.resize(10);
+		for (int i = 0; i < 10; i++) completed[i] = false;
+		build_missions();
+	}
+
+	private void build_missions() {
+		Mission m1;
+		m1.title = "Разминка";
+		m1.description = "Первое задание. Взломайте старый корпоративный сервер и скачайте логи доступа. Низкий риск.";
+		m1.complexity = 1;
+		m1.target_count = 1;
+		m1.target_type = "server";
+		m1.requires_stealth = false;
+		m1.consequence_flag = "";
+		missions.insert_last(m1);
+
+		Mission m2;
+		m2.title = "Тихий взлом";
+		m2.description = "Похитьте клиентскую базу с сервера средней защиты. Не триггерьте IDS.";
+		m2.complexity = 2;
+		m2.target_count = 1;
+		m2.target_type = "server";
+		m2.requires_stealth = true;
+		m2.consequence_flag = "";
+		missions.insert_last(m2);
+
+		Mission m3;
+		m3.title = "Сбор данных";
+		m3.description = "Скачайте 3 файла с резервного сервера. Шифрование слабое, но соединение мониторится.";
+		m3.complexity = 2;
+		m3.target_count = 3;
+		m3.target_type = "files";
+		m3.requires_stealth = true;
+		m3.consequence_flag = "";
+		missions.insert_last(m3);
+
+		Mission m4;
+		m4.title = "Заметай следы";
+		m4.description = "Предыдущий хакер оставил следы. Проникните на сервер логов и удалите все записи. Если поднять тревогу, сервер усилят.";
+		m4.complexity = 3;
+		m4.target_count = 1;
+		m4.target_type = "logs";
+		m4.requires_stealth = true;
+		m4.consequence_flag = "log_hardened";
+		missions.insert_last(m4);
+
+		Mission m5;
+		m5.title = "Ключ шифрования";
+		m5.description = "На сервере хранится ключ шифрования. Мощный фаервол, но шифрование устаревшее.";
+		m5.complexity = 3;
+		m5.target_count = 1;
+		m5.target_type = "encryption";
+		m5.requires_stealth = false;
+		m5.consequence_flag = "";
+		missions.insert_last(m5);
+
+		Mission m6;
+		m6.title = "Двойной агент";
+		m6.description = "Конкуренты тоже охотятся за целью. Доберитесь до данных первыми. Скорость важнее скрытности.";
+		m6.complexity = 4;
+		m6.target_count = 2;
+		m6.target_type = "server";
+		m6.requires_stealth = false;
+		m6.consequence_flag = "rival_encounter";
+		missions.insert_last(m6);
+
+		Mission m7;
+		m7.title = "Обход IDS";
+		m7.description = "На цели установлена современная IDS. Одна ошибка — и вся подсеть блокируется. Только скрытность.";
+		m7.complexity = 4;
+		m7.target_count = 1;
+		m7.target_type = "server";
+		m7.requires_stealth = true;
+		m7.consequence_flag = "subnet_locked";
+		missions.insert_last(m7);
+
+		Mission m8;
+		m8.title = "Крот";
+		m8.description = "Кто-то внутри организации клиента сливает данные. Найдите сервер крота и скачайте логи переписки.";
+		m8.complexity = 4;
+		m8.target_count = 2;
+		m8.target_type = "server";
+		m8.requires_stealth = true;
+		m8.consequence_flag = "";
+		missions.insert_last(m8);
+
+		Mission m9;
+		m9.title = "Zero Day";
+		m9.description = "Свежеобнаруженный эксплойт. Используйте его для взлома мейнфрейма мегакорпорации. Они узнают, так что работайте быстро.";
+		m9.complexity = 5;
+		m9.target_count = 3;
+		m9.target_type = "files";
+		m9.requires_stealth = false;
+		m9.consequence_flag = "megacorp_hunt";
+		missions.insert_last(m9);
+
+		Mission m10;
+		m10.title = "Финальный след";
+		m10.description = "Клиент вас сжёг. Взломайте его личный сервер, удалите все улики и добудьте доказательства предательства. Правил нет.";
+		m10.complexity = 5;
+		m10.target_count = 2;
+		m10.target_type = "evidence";
+		m10.requires_stealth = false;
+		m10.consequence_flag = "finale";
+		missions.insert_last(m10);
+	}
+
+	int get_mission_count() {
+		return int(missions.length());
+	}
+
+	Mission@ get_mission(int index) {
+		if (index < 0 || index >= int(missions.length())) return null;
+		return @missions[index];
+	}
+
+	Mission@ get_current_mission() {
+		return get_mission(current_mission);
+	}
+
+	int get_current_index() {
+		return current_mission;
+	}
+
+	void advance() {
+		if (current_mission < int(missions.length()) - 1) current_mission++;
+	}
+
+	bool has_next() {
+		return current_mission < int(missions.length()) - 1;
+	}
+
+	void complete_mission(int index) {
+		if (index >= 0 && index < int(completed.length())) completed[index] = true;
+		reputation += 10;
+	}
+
+	bool is_completed(int index) {
+		if (index < 0 || index >= int(completed.length())) return false;
+		return completed[index];
+	}
+
+	int get_reputation() {
+		return reputation;
+	}
+
+	void set_alarm_raised(bool state) {
+		alarm_raised = state;
+	}
+
+	bool get_alarm_raised() {
+		return alarm_raised;
+	}
+};

@@ -1,0 +1,27 @@
+class Tools {
+	private dictionary own_tools;
+	private string[] tool_list;
+
+	Tools() {
+		tool_list = {"port_scanner", "bruteforcer", "cracker", "stealth_module", "firewall_bypass", "log_wiper"};
+		own_tools["port_scanner"] = 1;
+		own_tools["bruteforcer"] = 1;
+		own_tools["cracker"] = 0;
+		own_tools["stealth_module"] = 0;
+		own_tools["firewall_bypass"] = 0;
+		own_tools["log_wiper"] = 0;
+	}
+
+	bool has_tool(string name) {
+		if (!own_tools.exists(name)) return false;
+		return int(own_tools[name]) > 0;
+	}
+
+	void add_tool(string name) {
+		own_tools[name] = 1;
+	}
+
+	string[]@ get_tool_list() {
+		return @tool_list;
+	}
+};
