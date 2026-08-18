@@ -43,12 +43,70 @@ F (защита) → B (доступ) → K (шифрование) → D (ска
 - [NVGT (Noliktor Game Toolkit)](https://nvgt.org) — движок для AngelScript
 - Звуковые файлы в папке `sounds/`
 
-## Установка
+## Установка — Windows
 
 1. Скачайте и установите NVGT
 2. Скопируйте проект
 3. Откройте `main.nvgt` в NVGT IDE
 4. Нажмите Build & Run
+
+## Установка — Linux
+
+### Ubuntu / Debian
+
+```bash
+# Установите зависимости
+sudo apt update
+sudo apt install -y libopenal-dev libsdl2-dev
+
+# Скачайте NVGT
+git clone https://github.com/noliktor/nvgt.git
+cd nvgt
+make
+sudo make install
+
+# Запустите игру
+cd /путь/к/hacker_game
+nvgt main.nvgt
+```
+
+### Arch Linux
+
+```bash
+# Установите зависимости
+sudo pacman -S openal sdl2
+
+# Скачайте и соберите NVGT
+git clone https://github.com/noliktor/nvgt.git
+cd nvgt
+make
+sudo make install
+
+# Запустите игру
+cd /путь/к/hacker_game
+nvgt main.nvgt
+```
+
+### Fedora / RHEL
+
+```bash
+# Установите зависимости
+sudo dnf install -y openal-devel SDL2-devel
+
+# Скачайте и соберите NVGT
+git clone https://github.com/noliktor/nvgt.git
+cd nvgt
+make
+sudo make install
+
+# Запустите игру
+cd /путь/к/hacker_game
+nvgt main.nvgt
+```
+
+### Если NVGT недоступен
+
+Игру можно запустить через [AngelScript](https://www.angelcode.com/angelscript/) с минимальными доработками — все скрипты написаны на чистом AngelScript без платформозависимого кода.
 
 ## Лицензия
 
