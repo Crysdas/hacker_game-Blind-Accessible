@@ -91,6 +91,7 @@ class HackerGame {
 		@story = StoryManager();
 		@sandbox = Sandbox(@audio);
 		@tools = Tools();
+		init_tts_voice();
 		log.log("All subsystems initialized");
 
 		@cmd_scan = ScanCommand();
@@ -480,6 +481,27 @@ class HackerGame {
 			audio.speak(cmd_name, true);
 			wait(150);
 			run_command(cmd_name);
+		}
+	}
+
+	private void init_tts_voice() {
+		// Without a screen reader NVGT falls back to SAPI; its default voice
+		// is the unusable "builtin fallback" which garbles Russian text.
+		// Prefer a real Russian-capable SAPI voice when present.
+		int first_real = -1;
+		for (int i = 0; i < tts.get_voice_count(); i++) {
+			string n = tts.get_voice_name(i).lower();
+			if (n.find("builtin") >= 0) continue;
+			if (first_real < 0) first_real = i;
+			if (n.find("irina") >= 0 || n.find("pavel") >= 0 || n.find("natalia") >= 0 || n.find("russian") >= 0) {
+				tts.set_voice(i);
+				log.log("TTS voice: " + tts.get_voice_name(i));
+				return;
+			}
+		}
+		if (first_real >= 0) {
+			tts.set_voice(first_real);
+			log.log("TTS voice: " + tts.get_voice_name(first_real));
 		}
 	}
 

@@ -87,15 +87,33 @@ if (Test-Path $libDir) {
     Get-ChildItem $libDir -File | ForEach-Object { Move-Item $_.FullName (Join-Path $dist $_.Name) -Force }
 }
 
-# --- 4. Cleanup: no source/loose assets/zip in dist ---
+# --- 4. Assemble clean folder layout:
+#     dist\HackerSimulatorZeroDay\
+#         HackerSimulatorZeroDay.exe
+#         lib\ (engine dlls)
+#         README.md
+#     dist\HackerSimulatorZeroDay.zip ---
+$outFolder = Join-Path $dist $OutName
+New-Item -ItemType Directory -Path $outFolder | Out-Null
+Move-Item $final (Join-Path $outFolder ($OutName + ".exe")) -Force
+
+$libOut = Join-Path $outFolder "lib"
+New-Item -ItemType Directory -Path $libOut | Out-Null
+Get-ChildItem $dist -File -Filter "*.dll" | ForEach-Object {
+    Move-Item $_.FullName (Join-Path $libOut $_.Name) -Force
+}
+Move-Item (Join-Path $dist "README.md") (Join-Path $outFolder "README.md") -Force
+
+[System.IO.Compression.ZipFile]::CreateFromDirectory($outFolder, (Join-Path $dist ($OutName + ".zip")))
+
+# --- 5. Cleanup: no sources/loose assets/zip in dist ---
 Remove-Item $prod -Recurse -Force
 Remove-Item $zip -Force
 Remove-Item (Join-Path $dist "game.dat") -Force -ErrorAction SilentlyContinue
 Get-ChildItem $dist -Filter "*.nvgt" -File | Remove-Item -Force
 
-$exeBytes = [System.IO.File]::ReadAllBytes($final)
+$exeBytes = [System.IO.File]::ReadAllBytes((Join-Path $outFolder ($OutName + ".exe")))
 $exeText = [System.Text.Encoding]::ASCII.GetString($exeBytes)
-Write-Output ("OK: " + $OutName + ".exe " + [math]::Round($exeBytes.Length/1MB,2) + " MB")
-Write-Output ("exe raw OggS present: " + $exeText.Contains("OggS") + " (if this is from the encrypted pack payload, check game.dat integrity)")
-Write-Output ("shipped:")
-Get-ChildItem $dist -File | ForEach-Object { Write-Output ("  " + $_.Name) }
+Write-Output ("OK: " + $OutName + " " + [math]::Round($exeBytes.Length/1MB,2) + " MB exe")
+Write-Output ("layout:")
+Get-ChildItem $dist -Recurse -File | ForEach-Object { Write-Output ("  " + $_.FullName.Substring($dist.Length + 1)) }
