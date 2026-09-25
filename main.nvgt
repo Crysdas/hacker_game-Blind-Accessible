@@ -83,14 +83,28 @@ enum GameMode {
 const string SETTINGS_FILE = "hacksim_settings.txt";
 
 // Persistent settings location: PC uses a local file next to the game,
-// phones use the app's own writable data directory.
+// phones use the app's writable data directory (chosen once at startup).
 string settings_path() {
-	if (is_touch_ui()) {
-		string p = get_preferences_path("", "hacksim");
-		if (p != "" && p.substr(p.length() - 1, 1) != "/" && p.substr(p.length() - 1, 1) != "\\") p += "/";
-		return p + "hacksim_settings.txt";
+	return g_settings_path;
+}
+
+void init_settings_path() {
+	if (!is_touch_ui()) {
+		g_settings_path = SETTINGS_FILE;
+		return;
 	}
-	return SETTINGS_FILE;
+	string p = get_preferences_path("", "hacksim");
+	if (p != "" && p.substr(p.length() - 1, 1) != "/" && p.substr(p.length() - 1, 1) != "\\") p += "/";
+	p += "hacksim_settings.txt";
+	file t;
+	if (t.open(p, "w")) { t.close(); g_settings_path = p; return; }
+	string alt = DIRECTORY_APPDATA;
+	if (alt != "" && alt.substr(alt.length() - 1, 1) != "/" && alt.substr(alt.length() - 1, 1) != "\\") alt += "/";
+	alt += "hacksim/";
+	directory_create(alt);
+	alt += "hacksim_settings.txt";
+	if (t.open(alt, "w")) { t.close(); g_settings_path = alt; return; }
+	g_settings_path = SETTINGS_FILE;
 }
 const string GAME_VERSION = "1.2";
 const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
@@ -103,6 +117,7 @@ int speech_language = 0; // 0 русский, 1 английский
 int speech_volume = 0; // 0 норма, 1 громко, 2 тише
 bool update_check = true; // автопроверка обновлений при старте
 bool upd_flag_was_set = false; // был ли "upd" в файле настроек
+string g_settings_path = ""; // вычисляется при старте (рабочий путь настроек)
 
 class HackerGame {
 	private AudioManager@ audio;
@@ -168,7 +183,9 @@ class HackerGame {
 		@sandbox = Sandbox(@audio);
 		@tools = Tools();
 		setup_touch();
+		init_settings_path();
 		load_settings();
+		print("settings_path=" + settings_path());
 		// On phones the NVGT network backend is fragile, so auto-update checks
 		// stay off by default (can be enabled in Settings manually).
 		if (is_touch_ui() && !upd_flag_was_set) update_check = false;
@@ -617,8 +634,9 @@ g_touch.monitor();
 	}
 
 	private void save_settings() {
+		string path = settings_path();
 		file f;
-		if (f.open(settings_path(), "w")) {
+		if (f.open(path, "w")) {
 			f.write("music=" + music_level + "\n");
 			f.write("sfx=" + (sfx_enabled ? "1" : "0") + "\n");
 			f.write("voice=" + voice_mode + "\n");
@@ -627,9 +645,9 @@ g_touch.monitor();
 			f.write("uilang=" + ui_lang + "\n");
 			f.write("upd=" + (update_check ? "1" : "0") + "\n");
 			f.close();
-			log.log("Settings saved");
+			log.log("Settings saved to " + path);
 		} else {
-			log.log("Settings save FAILED");
+			log.log("Settings save FAILED: " + path);
 		}
 	}
 
