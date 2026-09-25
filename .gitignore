@@ -7,6 +7,7 @@ t2o.txt
 tse.txt
 tso.txt
 dist/
+release/
 main.exe
 game.dat
 tools/_*

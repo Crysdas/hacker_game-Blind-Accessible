@@ -1,0 +1,115 @@
+/* build_release.nvgt - build the hardened (encrypted-asset) release of
+ * Hacker Simulator: Zero Day using only NVGT itself. No PowerShell needed.
+ *
+ * Usage (run from the project root):
+ *   nvgt tools/build_release.nvgt
+ * then compile the prepared release:
+ *   cd release
+ *   nvgt --compile main.nvgt
+ * unzip main.zip, rename the exe, keep lib/ next to it.
+ */
+
+string normal(string p) {
+	return p.replace("\\", "/");
+}
+
+string basename(string p) {
+	string n = normal(p);
+	int slash = -1;
+	for (int i = 0; i < int(n.length()); i++) {
+		if (n[i] == "/") slash = i;
+	}
+	return n.substr(slash + 1);
+}
+
+string trim_slash(string p) {
+	string n = normal(p);
+	while (n != "" && n[n.length() - 1] == "/") n = n.substr(0, n.length() - 1);
+	return n;
+}
+
+void main() {
+	// NVGT runs scripts with the cwd set to the script's own directory,
+	// so the project root is the parent of this script's folder (tools/).
+	string root = trim_slash(normal(cwdir()));
+	int slash = -1;
+	for (int i = 0; i < int(root.length()); i++) {
+		if (root[i] == "/") slash = i;
+	}
+	if (slash > 0) root = root.substr(0, slash);
+	root += "/";
+	print("hacksim release builder");
+	print("root: " + root);
+
+	// 1. Enumerate every sound file (absolute paths)
+	string[] sub = {"terminal", "ui", "alarm", "hack", "ambient", "Audio", "tones", "music"};
+	string[] all;
+	string[] top = glob(root + "sounds/*");
+	for (uint i = 0; i < top.length(); i++) {
+		if (file_exists(top[i])) all.insert_last(top[i]);
+	}
+	for (uint s = 0; s < sub.length(); s++) {
+		string[] f = glob(root + "sounds/" + sub[s] + "/*");
+		for (uint i = 0; i < f.length(); i++) {
+			all.insert_last(f[i]);
+		}
+	}
+	print("sound files: " + all.length());
+
+	// 2. Build the AES-encrypted pack
+	pack_file p;
+	if (!p.create(root + "game.dat", "0day-nvgt-2026-key")) {
+		alert("Error", "could not create game.dat");
+		return;
+	}
+	for (uint i = 0; i < all.length(); i++) {
+		string fp = normal(all[i]);
+		// internal name = everything after the project root, e.g. "sounds/..."
+		string rel = fp.substr(int(root.length()));
+		p.add_file(fp, rel);
+	}
+	p.close();
+	print("game.dat created");
+
+	// 3. Prepare release/ folder
+	string rel = root + "release/";
+	string relN = trim_slash(rel);
+	if (directory_exists(relN)) directory_delete(relN);
+	directory_create(relN);
+	directory_create(relN + "/src");
+
+	string[] srcs = glob(root + "src/*.nvgt");
+	for (uint i = 0; i < srcs.length(); i++) {
+		file_copy(srcs[i], rel + "src/" + basename(srcs[i]), true);
+	}
+
+	string main = file_get_contents(root + "main.nvgt");
+	main = main.replace("#pragma asset \"sounds\"", "#pragma embed \"game.dat\"");
+	main = main.replace("// PACK_CONST", "const string GAME_ASSET_KEY = \"0day-nvgt-2026-key\";");
+	main = main.replace("// PACK_FIELD", "private pack_file@ assets;");
+	string block = "pack_file@ p = pack_file();\n";
+	block += "if (p.open(\"*\", GAME_ASSET_KEY)) {\n";
+	block += "@assets = @p;\n";
+	block += "@sound_default_pack = @p;\n";
+	block += "log.log(\"Assets: embedded encrypted pack\");\n";
+	block += "} else if (p.open(\"game.dat\", GAME_ASSET_KEY)) {\n";
+	block += "@assets = @p;\n";
+	block += "@sound_default_pack = @p;\n";
+	block += "log.log(\"Assets: game.dat encrypted pack\");\n";
+	block += "} else {\n";
+	block += "log.log(\"Assets: loose files\");\n";
+	block += "}\n";
+	main = main.replace("// PACK_BOOTSTRAP", block);
+	if (!file_put_contents(rel + "main.nvgt", main)) {
+		alert("Error", "could not write release/main.nvgt");
+		return;
+	}
+	file_copy(root + "game.dat", rel + "game.dat", true);
+	file_copy(root + "README.md", rel + "README.md", true);
+
+	print("");
+	print("release/ ready. Next:");
+	print("  cd release");
+	print("  nvgt --compile main.nvgt");
+	print("Then unzip main.zip, rename main.exe and keep the lib/ folder next to it.");
+}

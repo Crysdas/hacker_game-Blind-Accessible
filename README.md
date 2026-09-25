@@ -40,9 +40,24 @@ F (защита) → B (доступ) → K (шифрование) → D (ска
 
 ## Требования
 
-- [NVGT (Noliktor Game Toolkit)](https://nvgt.org) — движок для AngelScript (0.88+)
+- [NVGT (Noliktor Game Toolkit)](https://nvgt.org) — движок для AngelScript (0.88+ для запуска; 0.90+ для сборки релиза)
 - Звуковые файлы в папке `sounds/`
 - Для запуска достаточно открыть `main.nvgt` в NVGT (двойным кликом или `nvgt main.nvgt`). Никаких файлов рядом не требуется — игра работает «из коробки».
+
+## Сборка защищённого релиза (без PowerShell, только NVGT)
+
+Звуки упаковываются в зашифрованный `game.dat` и встраиваются в exe. Все шаги на чистом NVGT:
+
+```bash
+# 1. из корня проекта соберите release/ (создаст зашифрованный game.dat и подготовит main.nvgt)
+nvgt tools/build_release.nvgt
+
+# 2. скомпилируйте защищённый exe
+cd release
+nvgt --compile main.nvgt
+```
+
+Затем распакуйте `release/main.zip`, переименуйте exe и оставьте папку `lib/` рядом с ним — игра самодостаточна, звуки внутри exe.
 
 ## Установка — Windows
 
