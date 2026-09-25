@@ -538,8 +538,20 @@ log.log("show_splash()");
 					audio.speak(tr("Test", "Проверка"), true);
 				} else if (sel == 5) {
 					ui_lang = (ui_lang + 1) % 2;
+					// Keep the spoken voice in sync with the interface language
+					speech_language = ui_lang;
+					init_tts_voice();
 					save_settings();
-					game_menu.set_item(5, tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label());
+					string[] back = {
+						tr("Music: ", "Музыка: ") + music_label(),
+						tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")),
+						tr("Voice: ", "Голос: ") + voice_label(),
+						tr("Speech language: ", "Язык речи: ") + lang_label(),
+						tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
+						tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
+						tr("Back to menu", "Вернуться в меню")
+					};
+					game_menu.set_items(back);
 					audio.speak(tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(), true);
 					audio.speak(tr("This game is now in English.", "Игра теперь на русском языке."), true);
 				} else if (sel == 6) {
