@@ -92,7 +92,7 @@ string settings_path() {
 	}
 	return SETTINGS_FILE;
 }
-const string GAME_VERSION = "1.1";
+const string GAME_VERSION = "1.2";
 const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
 const string UPDATE_ZIP_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.zip";
 const string UPDATE_APK_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.apk";
@@ -709,6 +709,7 @@ g_touch.monitor();
 			tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
 			tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
 			tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
+			tr("About", "О игре"),
 			tr("Back to menu", "Вернуться в меню")
 		};
 		game_menu.set_items(items);
@@ -772,6 +773,7 @@ g_touch.monitor();
 						tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
 						tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
 						tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
+						tr("About", "О игре"),
 						tr("Back to menu", "Вернуться в меню")
 					};
 					game_menu.set_items(back);
@@ -783,6 +785,8 @@ g_touch.monitor();
 					game_menu.set_item(6, tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")));
 					audio.speak(tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")), true);
 				} else if (sel == 7) {
+					audio.speak(tr("Hacker Simulator: Zero Day, version ", "Хакер-симулятор: Zero Day, версия ") + GAME_VERSION + tr(". Updates: ", ". Проверка обновлений: ") + (update_check ? tr("on.", "вкл.") : tr("off.", "выкл.")), true);
+				} else if (sel == 8) {
 					game_menu.close();
 					show_main_menu();
 					return;
