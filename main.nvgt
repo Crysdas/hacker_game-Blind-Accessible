@@ -77,6 +77,7 @@ int voice_mode = 0; // 0 скринридер (NVDA), 1 системный го�
 int speech_language = 0; // 0 русский, 1 английский
 int speech_volume = 0; // 0 норма, 1 громко, 2 тише
 bool update_check = true; // автопроверка обновлений при старте
+bool upd_flag_was_set = false; // был ли "upd" в файле настроек
 
 class HackerGame {
 	private AudioManager@ audio;
@@ -143,6 +144,9 @@ class HackerGame {
 		@tools = Tools();
 		setup_touch();
 		load_settings();
+		// On phones the NVGT network backend is fragile, so auto-update checks
+		// stay off by default (can be enabled in Settings manually).
+		if (is_touch_ui() && !upd_flag_was_set) update_check = false;
 		audio.set_sfx_enabled(sfx_enabled);
 		init_tts_voice();
 		log.log("All subsystems initialized");
@@ -618,7 +622,7 @@ g_touch.monitor();
 					else if (key == "lang") speech_language = parse_int(val);
 					else if (key == "spkv") speech_volume = parse_int(val);
 					else if (key == "uilang") ui_lang = parse_int(val);
-					else if (key == "upd") update_check = parse_int(val) != 0;
+					else if (key == "upd") { update_check = parse_int(val) != 0; upd_flag_was_set = true; }
 				}
 				line = f.read_line();
 			}
