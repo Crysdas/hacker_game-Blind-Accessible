@@ -20,6 +20,7 @@ class HackingGame {
 
 		while (true) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_RETURN)) break;
 			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
 			if (key_pressed(KEY_LEFT)) { audio.history_back(); wait(100); }
@@ -42,6 +43,7 @@ class HackingGame {
 			bool pressed = false;
 			while (t.elapsed < uint(beat_gap)) {
 				wait(5);
+g_touch.monitor();
 				if (key_pressed(KEY_RETURN) && !pressed) {
 					pressed = true;
 					if (t.elapsed < uint(beat_gap - 120)) { hits++; audio.success_beep(); }
@@ -79,6 +81,7 @@ class HackingGame {
 
 		while (pos >= 0) {
 			wait(5);
+g_touch.monitor();
 			if (t.elapsed > uint(max_wait)) {
 				audio.error_beep();
 				audio.speak(tr("Time is up!", "Время вышло!"), true);
@@ -149,6 +152,7 @@ class HackingGame {
 		audio.speak(tr("Reference. Enter — options, Space — reference again, 1-4 — answer.", "Эталон. Enter — варианты, Пробел — эталон ещё, 1-4 — ответ."), true);
 		while (true) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_RETURN)) {
 				for (int i = 0; i < 4; i++) { audio.beep(options[i], 400); wait(200); audio.speak("" + (i+1), true); wait(300); }
 				audio.speak(tr("1-4?", "1-4?"), false);
@@ -183,6 +187,7 @@ class HackingGame {
 		audio.speak(tr("Enter — repeat, 1-4 — the odd one?", "Enter — повторить, 1-4 — лишний?"), false);
 		while (true) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_RETURN)) { for (int i = 0; i < 4; i++) { audio.beep(options[i], 300); wait(250); } audio.speak(tr("1-4?", "1-4?"), false); }
 			if (key_pressed(KEY_1)) { if (odd_index == 0) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index+1), true); return false; } }
 			if (key_pressed(KEY_2)) { if (odd_index == 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index+1), true); return false; } }
@@ -225,6 +230,7 @@ class HackingGame {
 		int[] answer;
 		while (answer.length() < 3) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
 			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
@@ -274,6 +280,7 @@ class HackingGame {
 
 		while (pos < seq_len) {
 			wait(5);
+g_touch.monitor();
 			if (timeout_timer.elapsed > uint(max_wait)) {
 				audio.error_beep();
 				audio.speak(tr("Time is up! Access locked.", "Время вышло! Доступ заблокирован."), true);

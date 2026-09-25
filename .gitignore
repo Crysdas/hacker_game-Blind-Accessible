@@ -8,6 +8,7 @@ tse.txt
 tso.txt
 dist/
 release/
+cross/
 main.exe
 game.dat
 tools/_*

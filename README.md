@@ -59,6 +59,25 @@ nvgt --compile main.nvgt
 
 Затем распакуйте `release/main.zip`, переименуйте exe и оставьте папку `lib/` рядом с ним — игра самодостаточна, звуки внутри exe.
 
+## Сборка для других платформ
+
+Игра кроссплатформенная (жесты тачскрина для мобильных встроены).
+
+```bash
+# Linux (из исходника; звуки лежат рядом)
+nvgt --compile main.nvgt -p linux          # даёт main.tar.gz
+
+# Android (из release/main.nvgt, звуки встроены паоком; нужен SDK/NDK в NVGT)
+cd release
+nvgt --compile main.nvgt -p android        # даёт main.apk
+
+# iOS / macOS
+nvgt --compile main.nvgt -p mac
+# iOS собирается с macOS-хоста (NVGT): nvgt --compile main.nvgt -p ios
+```
+
+Управление на Android/iOS: свайп влево/вправо — навигация по меню, свайп вверх — назад, двойной тап — выбор. Если включён системный диктор (TalkBack/VoiceOver), игра попросит его выключить, так как использует собственные жесты.
+
 ## Установка — Windows
 
 1. Скачайте и установите NVGT

@@ -6,6 +6,10 @@ string tr(string en, string ru) {
 	return ru;
 }
 
+// Touch screen support (Android/iOS): swipes and taps become key events.
+#include "touch.nvgt"
+touch_gesture_manager g_touch;
+
 #include "speech.nvgt"
 #include "src/audio.nvgt"
 #include "src/terminal.nvgt"
@@ -103,6 +107,7 @@ class HackerGame {
 		@story = StoryManager();
 		@sandbox = Sandbox(@audio);
 		@tools = Tools();
+		setup_touch();
 		load_settings();
 		audio.set_sfx_enabled(sfx_enabled);
 		init_tts_voice();
@@ -152,6 +157,7 @@ class HackerGame {
 
 			while (running) {
 				wait(5);
+g_touch.monitor();
 				handle_input();
 			}
 		} catch {
@@ -163,10 +169,25 @@ class HackerGame {
 		log.stop();
 	}
 
+private void setup_touch() {
+		// Android/iOS gestures: left/right move in menus, up = back,
+		// double tap = select. Desktop is unaffected (no touch screen).
+		g_touch.add_touch_interface(touch_keyboard_interface(g_touch, {
+			{"swipe_left1f", KEY_UP},
+			{"swipe_right1f", KEY_DOWN},
+			{"swipe_up1f", KEY_ESCAPE},
+			{"double_tap1f", KEY_RETURN}
+		}));
+	}
+
 	private void show_splash() {
-log.log("show_splash()");
+		log.log("show_splash()");
 		show_window("Hacker Simulator: Zero Day");
 		set_application_name("Hacker Simulator: Zero Day");
+		if (system_is_mobile && screen_reader_has_speech()) {
+			audio.speak(tr("A screen reader is active. Please turn it off for the best experience, the game uses its own touch gestures.", "Включён экранный диктор. Пожалуйста, выключите его: игра использует собственные жесты."), true);
+			wait_skip(3000);
+		}
 		audio.play_sound("logo_riser");
 		if (wait_skip(2150)) return;
 		audio.play_sound("logo_hit");
@@ -186,6 +207,7 @@ log.log("show_splash()");
 		timer t;
 		while (t.elapsed < uint(ms)) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_RETURN) || key_pressed(KEY_SPACE)) return true;
 		}
 		return false;
@@ -214,6 +236,7 @@ log.log("show_splash()");
 
 		while (game_menu.is_active()) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
 			if (key_pressed(KEY_HOME)) game_menu.move_first();
@@ -291,6 +314,7 @@ log.log("show_splash()");
 		bool sc_done = false;
 		while (!sc_done) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) { sel = sel > 0 ? sel - 1 : 2; audio.speak(scenario_types[sel], true); wait(120); }
 			if (key_pressed(KEY_DOWN)) { sel = sel < 2 ? sel + 1 : 0; audio.speak(scenario_types[sel], true); wait(120); }
 			if (key_pressed(KEY_RETURN)) {
@@ -311,6 +335,7 @@ log.log("show_splash()");
 		bool done = false;
 		while (!done) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) {
 				servers = servers < 20 ? servers + 1 : 3;
 				audio.speak("" + servers + tr(" targets", " целей"), true);
@@ -327,6 +352,7 @@ log.log("show_splash()");
 				bool done_ids = false;
 				while (!done_ids) {
 					wait(5);
+g_touch.monitor();
 					if (key_pressed(KEY_UP)) {
 						ids = ids < 5 ? ids + 1 : 0;
 						audio.speak(tr("Difficulty ", "Сложность ") + ids, true);
@@ -495,6 +521,7 @@ log.log("show_splash()");
 
 		while (game_menu.is_active()) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
 			if (key_pressed(KEY_HOME)) game_menu.move_first();
@@ -595,6 +622,7 @@ log.log("show_splash()");
 
 		while (game_menu.is_active()) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
 			if (key_pressed(KEY_HOME)) game_menu.move_first();
