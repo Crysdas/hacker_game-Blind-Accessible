@@ -49,8 +49,10 @@ string hint_back() {
 
 // Touch screen support (Android/iOS): swipes and taps become key events.
 #include "touch.nvgt"
+#include "settings.nvgt"
 #include "src/touch_digit.nvgt"
 touch_gesture_manager g_touch;
+settings S;
 
 #include "speech.nvgt"
 #include "src/audio.nvgt"
@@ -93,18 +95,12 @@ void init_settings_path() {
 		g_settings_path = SETTINGS_FILE;
 		return;
 	}
-	string p = get_preferences_path("", "hacksim");
-	if (p != "" && p.substr(p.length() - 1, 1) != "/" && p.substr(p.length() - 1, 1) != "\\") p += "/";
-	p += "hacksim_settings.txt";
-	file t;
-	if (t.open(p, "w")) { t.close(); g_settings_path = p; return; }
-	string alt = DIRECTORY_APPDATA;
-	if (alt != "" && alt.substr(alt.length() - 1, 1) != "/" && alt.substr(alt.length() - 1, 1) != "\\") alt += "/";
-	alt += "hacksim/";
-	directory_create(alt);
-	alt += "hacksim_settings.txt";
-	if (t.open(alt, "w")) { t.close(); g_settings_path = alt; return; }
-	g_settings_path = SETTINGS_FILE;
+	S.filename = "hacksim_settings";
+	if (S.setup("", "hacksim", false, "ini")) {
+		g_settings_path = "(settings.nvgt)";
+	} else {
+		g_settings_path = SETTINGS_FILE;
+	}
 }
 const string GAME_VERSION = "1.2";
 const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
@@ -634,6 +630,17 @@ g_touch.monitor();
 	}
 
 	private void save_settings() {
+		if (is_touch_ui()) {
+			S.write_number("music", music_level);
+			S.write_bool("sfx", sfx_enabled);
+			S.write_number("voice", voice_mode);
+			S.write_number("lang", speech_language);
+			S.write_number("spkv", speech_volume);
+			S.write_number("uilang", ui_lang);
+			S.write_bool("upd", update_check);
+			log.log("Settings saved via settings.nvgt");
+			return;
+		}
 		string path = settings_path();
 		file f;
 		if (f.open(path, "w")) {
@@ -652,6 +659,27 @@ g_touch.monitor();
 	}
 
 	private void load_settings() {
+		if (is_touch_ui()) {
+			music_level = int(S.read_number("music", 2));
+			sfx_enabled = S.read_bool("sfx", true);
+			voice_mode = int(S.read_number("voice", 0));
+			speech_language = int(S.read_number("lang", 0));
+			speech_volume = int(S.read_number("spkv", 0));
+			ui_lang = int(S.read_number("uilang", 0));
+			if (S.exists("upd")) { update_check = S.read_bool("upd", true); upd_flag_was_set = true; }
+			if (music_level < 0) music_level = 0;
+			if (music_level > 2) music_level = 2;
+			if (voice_mode < 0) voice_mode = 0;
+			if (voice_mode > 1) voice_mode = 1;
+			if (speech_language < 0) speech_language = 0;
+			if (speech_language > 1) speech_language = 1;
+			if (speech_volume < 0) speech_volume = 0;
+			if (speech_volume > 2) speech_volume = 2;
+			if (ui_lang < 0) ui_lang = 0;
+			if (ui_lang > 1) ui_lang = 1;
+			log.log("Settings loaded via settings.nvgt");
+			return;
+		}
 		file f;
 		if (f.open(settings_path(), "r")) {
 			string line = f.read_line();
