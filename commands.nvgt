@@ -22,7 +22,7 @@ class Command {
 class ScanCommand : Command {
 	ScanCommand() {
 		name = "scan";
-		hint = "S: сканировать цели";
+		hint = tr("S: scan targets", "S: сканировать цели");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
@@ -34,7 +34,7 @@ class ScanCommand : Command {
 class ConnectCommand : Command {
 	ConnectCommand() {
 		name = "connect";
-		hint = "C: подключиться к цели";
+		hint = tr("C: connect to a target", "C: подключиться к цели");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
@@ -45,21 +45,21 @@ class ConnectCommand : Command {
 class EnumCommand : Command {
 	EnumCommand() {
 		name = "enum";
-		hint = "E: перечислить порты";
+		hint = tr("E: list ports/info", "E: перечислить порты");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		if (!connected || @current == null) {
 			audio.error_beep();
-			audio.speak("Нет подключения.", true);
+			audio.speak(tr("No connection.", "Нет подключения."), true);
 			return false;
 		}
 		if (current.target_type == "person") {
-			audio.speak("Сбор информации о цели " + current.hostname, true);
-			audio.speak("Доверие: " + current.trust_level + "/5, Осторожность: " + current.encryption_level + "/5", true);
+			audio.speak(tr("Gathering info on ", "Сбор информации о цели ") + current.hostname, true);
+			audio.speak(tr("Trust: ", "Доверие: ") + current.trust_level + tr("/5, Caution: ", "/5, Осторожность: ") + current.encryption_level + tr("/5", "/5"), true);
 		} else if (current.target_type == "system") {
-			audio.speak("Сканирование системы " + current.hostname, true);
-			audio.speak("Уровень мониторинга: " + current.monitoring_level + "/5", true);
+			audio.speak(tr("Scanning system ", "Сканирование системы ") + current.hostname, true);
+			audio.speak(tr("Monitoring level: ", "Уровень мониторинга: ") + current.monitoring_level + tr("/5", "/5"), true);
 			hacking.port_scan(current.open_ports.length());
 		} else {
 			hacking.port_scan(current.open_ports);
@@ -71,33 +71,33 @@ class EnumCommand : Command {
 class FirewallCommand : Command {
 	FirewallCommand() {
 		name = "firewall";
-		hint = "F: обход защиты";
+		hint = tr("F: bypass protection", "F: обход защиты");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		if (!connected || @current == null) {
 			audio.error_beep();
-			audio.speak("Нет подключения.", true);
+			audio.speak(tr("No connection.", "Нет подключения."), true);
 			return false;
 		}
 		if (current.compromised) {
-			audio.speak("Цель уже взломана.", true);
+			audio.speak(tr("Target already hacked.", "Цель уже взломана."), true);
 			return false;
 		}
 		if (current.firewall_bypassed) {
-			audio.speak("Защита уже обойдена. Используйте B для подбора.", true);
+			audio.speak(tr("Protection already bypassed. Use B to guess access.", "Защита уже обойдена. Используйте B для подбора."), true);
 			return false;
 		}
-		string type_name = current.target_type == "person" ? "доверия" : current.target_type == "system" ? "мониторинга" : "фаервола";
-		audio.speak("Обход " + type_name + ".", true);
+		string type_name = current.target_type == "person" ? tr("trust", "доверия") : current.target_type == "system" ? tr("monitoring", "мониторинга") : tr("firewall", "фаервола");
+		audio.speak(tr("Bypassing ", "Обход ") + type_name + ".", true);
 		bool ok = hacking.firewall_bypass(current.firewall_strength);
 		if (ok) {
 			current.firewall_bypassed = true;
-			audio.speak("Обход успешен. Используйте B для подбора доступа.", true);
+			audio.speak(tr("Bypass successful. Use B to guess access.", "Обход успешен. Используйте B для подбора доступа."), true);
 		} else {
 			current.alert_ids();
 			if (mode == "story") {
-				audio.speak("Осторожно! Повторная попытка привлечёт внимание.", false);
+				audio.speak(tr("Careful! Another attempt will draw attention.", "Осторожно! Повторная попытка привлечёт внимание."), false);
 			}
 		}
 		return true;
@@ -107,42 +107,42 @@ class FirewallCommand : Command {
 class BruteforceCommand : Command {
 	BruteforceCommand() {
 		name = "bruteforce";
-		hint = "B: подбор доступа";
+		hint = tr("B: guess access", "B: подбор доступа");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		if (!connected || @current == null) {
 			audio.error_beep();
-			audio.speak("Нет подключения.", true);
+			audio.speak(tr("No connection.", "Нет подключения."), true);
 			return false;
 		}
 		if (current.compromised) {
-			audio.speak("Цель уже взломана.", true);
+			audio.speak(tr("Target already hacked.", "Цель уже взломана."), true);
 			return false;
 		}
 		if (!current.firewall_bypassed) {
 			audio.error_beep();
-			audio.speak("Сначала обойдите защиту (F).", true);
+			audio.speak(tr("Bypass the protection first (F).", "Сначала обойдите защиту (F)."), true);
 			return false;
 		}
 		if (current.password_cracked) {
-			audio.speak("Пароль уже подобран. Используйте K для взлома шифрования.", true);
+			audio.speak(tr("Password already guessed. Use K to crack encryption.", "Пароль уже подобран. Используйте K для взлома шифрования."), true);
 			return false;
 		}
 		if (current.alerted && random(1, 100) > 70) {
 			audio.alert_beep();
-			audio.speak("IDS засекла подбор! Соединение сброшено.", true);
+			audio.speak(tr("IDS caught the brute-force! Connection dropped.", "IDS засекла подбор! Соединение сброшено."), true);
 			return false;
 		}
-		string action = current.target_type == "person" ? "социальная инженерия" : "подбор пароля";
+		string action = current.target_type == "person" ? tr("social engineering", "социальная инженерия") : tr("password brute-force", "подбор пароля");
 		audio.speak(action, true);
 		if (hacking.bruteforce(current.security_level)) {
 			current.password_cracked = true;
-			audio.speak("Доступ получен! Используйте K для взлома шифрования.", true);
+			audio.speak(tr("Access granted! Use K to crack encryption.", "Доступ получен! Используйте K для взлома шифрования."), true);
 		} else {
 			audio.error_beep();
 			current.alert_ids();
-			audio.speak("Подбор неудачен! Цель заметила активность.", true);
+			audio.speak(tr("Brute-force failed! The target noticed the activity.", "Подбор неудачен! Цель заметила активность."), true);
 		}
 		return true;
 	}
@@ -151,37 +151,38 @@ class BruteforceCommand : Command {
 class CrackCommand : Command {
 	CrackCommand() {
 		name = "crack";
-		hint = "K: взлом шифрования";
+		hint = tr("K: crack encryption", "K: взлом шифрования");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		if (!connected || @current == null) {
 			audio.error_beep();
-			audio.speak("Нет подключения.", true);
+			audio.speak(tr("No connection.", "Нет подключения."), true);
 			return false;
 		}
 		if (current.compromised) {
-			audio.speak("Цель уже взломана.", true);
+			audio.speak(tr("Target already hacked.", "Цель уже взломана."), true);
 			return false;
 		}
 		if (!current.firewall_bypassed) {
 			audio.error_beep();
-			audio.speak("Сначала обойдите защиту (F).", true);
+			audio.speak(tr("Bypass the protection first (F).", "Сначала обойдите защиту (F)."), true);
 			return false;
 		}
 		if (!current.password_cracked) {
 			audio.error_beep();
-			audio.speak("Сначала подберите доступ (B).", true);
+			audio.speak(tr("Guess the access first (B).", "Сначала подберите доступ (B)."), true);
 			return false;
 		}
-		string action = current.target_type == "person" ? "психологическое давление" : "взлом шифрования";
-		audio.speak(action + " на " + current.hostname, true);
+		string action = current.target_type == "person" ? tr("psychological pressure", "психологическое давление") : tr("encryption crack", "взлом шифрования");
+		audio.speak(action + tr(" on ", " на ") + current.hostname, true);
 		if (hacking.crack_encryption(current.encryption_level)) {
 			current.compromised = true;
-			audio.speak(current.target_type == "person" ? "Цель сломлена. Все данные доступны." : "Шифрование взломано. Сервер скомпрометирован.", true);
+			audio.play_sound("hacked");
+			audio.speak(current.target_type == "person" ? tr("Target broken. All data is available.", "Цель сломлена. Все данные доступны.") : tr("Encryption cracked. Server compromised.", "Шифрование взломано. Сервер скомпрометирован."), true);
 		} else {
 			audio.error_beep();
-			audio.speak("Взлом не удался.", true);
+			audio.speak(tr("Crack failed.", "Взлом не удался."), true);
 			if (current.monitoring_level > 3) {
 				current.alert_ids();
 			}
@@ -193,22 +194,22 @@ class CrackCommand : Command {
 class DownloadCommand : Command {
 	DownloadCommand() {
 		name = "download";
-		hint = "D: скачать данные";
+		hint = tr("D: download data", "D: скачать данные");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		if (!connected || @current == null) {
 			audio.error_beep();
-			audio.speak("Нет подключения.", true);
+			audio.speak(tr("No connection.", "Нет подключения."), true);
 			return false;
 		}
 		if (!current.compromised) {
 			audio.error_beep();
-			audio.speak("Цель не взломана! Цепочка: F (защита) → B (доступ) → K (шифрование) → D (скачать).", true);
+			audio.speak(tr("Target not hacked! Chain: F (protection) -> B (access) -> K (encryption) -> D (download).", "Цель не взломана! Цепочка: F (защита) → B (доступ) → K (шифрование) → D (скачать)."), true);
 			return false;
 		}
-		string data_name = current.target_type == "person" ? "личных данных" : current.target_type == "system" ? "системных логов" : "файлов";
-		audio.speak("Скачивание " + data_name + ". " + current.files.length() + " объектов...", true);
+		string data_name = current.target_type == "person" ? tr("personal data", "личных данных") : current.target_type == "system" ? tr("system logs", "системных логов") : tr("files", "файлов");
+		audio.speak(tr("Downloading ", "Скачивание ") + data_name + ". " + current.files.length() + tr(" objects...", " объектов..."), true);
 		int count = 0;
 		for (uint i = 0; i < current.files.length(); i++) {
 			wait(200);
@@ -217,12 +218,12 @@ class DownloadCommand : Command {
 			count++;
 		}
 		if (current.target_type == "person") {
-			audio.speak("Компромат на " + current.hostname + " получен.", true);
+			audio.speak(tr("Compromising info on ", "Компромат на ") + current.hostname + tr(" obtained.", " получен."), true);
 		} else if (current.target_type == "system") {
-			audio.speak("Система " + current.hostname + " скомпрометирована. Логи скачаны.", true);
+			audio.speak(tr("System ", "Система ") + current.hostname + tr(" compromised. Logs downloaded.", " скомпрометирована. Логи скачаны."), true);
 		}
 		audio.success_beep();
-		audio.speak("Извлечено " + count + " объектов. Миссия выполнена.", false);
+		audio.speak(tr("Extracted ", "Извлечено ") + count + tr(" objects. Mission complete.", " объектов. Миссия выполнена."), false);
 		return true;
 	}
 };
@@ -230,47 +231,47 @@ class DownloadCommand : Command {
 class SpamCommand : Command {
 	SpamCommand() {
 		name = "spam";
-		hint = "M: спам/атака на цель";
+		hint = tr("M: spam/attack a target", "M: спам/атака на цель");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		if (!connected || @current == null) {
 			audio.error_beep();
-			audio.speak("Нет подключения.", true);
+			audio.speak(tr("No connection.", "Нет подключения."), true);
 			return false;
 		}
 		if (current.target_type == "person") {
-			audio.speak("Запуск спам-рассылки на " + current.hostname, true);
+			audio.speak(tr("Launching spam at ", "Запуск спам-рассылки на ") + current.hostname, true);
 			wait(300);
 			audio.terminal_click();
-			audio.speak("Отправлено: фальшивый счёт", true);
+			audio.speak(tr("Sent: fake invoice", "Отправлено: фальшивый счёт"), true);
 			wait(200);
 			audio.terminal_click();
-			audio.speak("Отправлено: предложение о работе", true);
+			audio.speak(tr("Sent: job offer", "Отправлено: предложение о работе"), true);
 			wait(200);
 			audio.terminal_click();
-			audio.speak("Отправлено: уведомление о взломе", true);
+			audio.speak(tr("Sent: breach notification", "Отправлено: уведомление о взломе"), true);
 			wait(200);
 			current.trust_level = current.trust_level > 1 ? current.trust_level - 1 : 1;
-			audio.speak("Доверие цели снижено до " + current.trust_level, true);
+			audio.speak(tr("Target trust lowered to ", "Доверие цели снижено до ") + current.trust_level, true);
 			return true;
 		} else if (current.target_type == "system") {
-			audio.speak("Заполнение логов мусором на " + current.hostname, true);
+			audio.speak(tr("Filling logs with garbage on ", "Заполнение логов мусором на ") + current.hostname, true);
 			wait(300);
 			audio.explosion_sound();
-			audio.speak("Логи переполнены. Мониторинг ослеплён.", true);
+			audio.speak(tr("Logs flooded. Monitoring blinded.", "Логи переполнены. Мониторинг ослеплён."), true);
 			current.monitoring_level = current.monitoring_level > 1 ? current.monitoring_level - 1 : 0;
 			return true;
 		} else {
-			audio.speak("DDoS-атака на порты " + current.hostname, true);
+			audio.speak(tr("DDoS attack on ports ", "DDoS-атака на порты ") + current.hostname, true);
 			wait(200);
 			audio.laser_large();
 			for (uint i = 0; i < current.open_ports.length(); i++) {
 				wait(150);
 				audio.terminal_click();
-				audio.speak("Порт " + current.open_ports[i] + " забросан", true);
+				audio.speak(tr("Port ", "Порт ") + current.open_ports[i] + tr(" hit", " забросан"), true);
 			}
-			audio.speak("DDoS завершён. Защита ослаблена.", true);
+			audio.speak(tr("DDoS complete. Protection weakened.", "DDoS завершён. Защита ослаблена."), true);
 			if (current.firewall_strength > 1) current.firewall_strength = current.firewall_strength - 1;
 			return true;
 		}
@@ -280,15 +281,15 @@ class SpamCommand : Command {
 class HelpCommand : Command {
 	HelpCommand() {
 		name = "help";
-		hint = "H: список команд";
+		hint = tr("H: command list", "H: список команд");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
-		audio.speak("Команды: S — сканировать, C — подключиться, E — порты/инфо, F — обход защиты, B — подбор доступа, K — взлом, D — скачать, X — отключиться, H — помощь, контекстное меню — App.", true);
+		audio.speak(tr("Commands: S — scan, C — connect, E — ports/info, F — bypass protection, B — guess access, K — crack, D — download, X — disconnect, H — help, context menu — App.", "Команды: S — сканировать, C — подключиться, E — порты/инфо, F — обход защиты, B — подбор доступа, K — взлом, D — скачать, X — отключиться, H — помощь, контекстное меню — App."), true);
 		if (connected && @current != null) {
-			if (current.target_type == "person") audio.speak("Цель: человек. Тактика: F(доверие) → B(соц.инженерия) → K(давление) → D(компромат).", false);
-			else if (current.target_type == "system") audio.speak("Цель: система. Тактика: F(мониторинг) → B(эксплойт) → K(шифрование) → D(логи).", false);
-			else audio.speak("Цель: сервер. Тактика: F(фаервол) → B(пароль) → K(шифрование) → D(файлы).", false);
+			if (current.target_type == "person") audio.speak(tr("Target: human. Tactics: F(trust) → B(social engineering) → K(pressure) → D(compromise).", "Цель: человек. Тактика: F(доверие) → B(соц.инженерия) → K(давление) → D(компромат)."), false);
+			else if (current.target_type == "system") audio.speak(tr("Target: system. Tactics: F(monitoring) → B(exploit) → K(encryption) → D(logs).", "Цель: система. Тактика: F(мониторинг) → B(эксплойт) → K(шифрование) → D(логи)."), false);
+			else audio.speak(tr("Target: server. Tactics: F(firewall) → B(password) → K(encryption) → D(files).", "Цель: сервер. Тактика: F(фаервол) → B(пароль) → K(шифрование) → D(файлы)."), false);
 		}
 		return true;
 	}
@@ -297,12 +298,12 @@ class HelpCommand : Command {
 class DisconnectCommand : Command {
 	DisconnectCommand() {
 		name = "disconnect";
-		hint = "X: отключиться";
+		hint = tr("X: disconnect", "X: отключиться");
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
 		audio.disconnect_sound();
-		audio.speak("Отключено.", true);
+		audio.speak(tr("Disconnected.", "Отключено."), true);
 		return true;
 	}
 };

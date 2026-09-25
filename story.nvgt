@@ -36,8 +36,8 @@ class StoryManager {
 
 	private void build_missions() {
 		Mission m1;
-		m1.title = "Разминка";
-		m1.description = "Первое задание. Взломайте старый корпоративный сервер и скачайте логи доступа. Низкий риск.";
+		m1.title = tr("Warm-up", "Разминка");
+		m1.description = tr("First job. Hack an old corporate server and download the access logs. Low risk.", "Первое задание. Взломайте старый корпоративный сервер и скачайте логи доступа. Низкий риск.");
 		m1.complexity = 1;
 		m1.target_count = 1;
 		m1.target_type = "server";
@@ -46,8 +46,8 @@ class StoryManager {
 		missions.insert_last(m1);
 
 		Mission m2;
-		m2.title = "Тихий взлом";
-		m2.description = "Похитьте клиентскую базу с сервера средней защиты. Не триггерьте IDS.";
+		m2.title = tr("Silent hack", "Тихий взлом");
+		m2.description = tr("Steal the client database from a medium-protected server. Don't trigger the IDS.", "Похитьте клиентскую базу с сервера средней защиты. Не триггерьте IDS.");
 		m2.complexity = 2;
 		m2.target_count = 1;
 		m2.target_type = "server";
@@ -56,8 +56,8 @@ class StoryManager {
 		missions.insert_last(m2);
 
 		Mission m3;
-		m3.title = "Сбор данных";
-		m3.description = "Скачайте 3 файла с резервного сервера. Шифрование слабое, но соединение мониторится.";
+		m3.title = tr("Data collection", "Сбор данных");
+		m3.description = tr("Download 3 files from a backup server. Weak encryption, but the connection is monitored.", "Скачайте 3 файла с резервного сервера. Шифрование слабое, но соединение мониторится.");
 		m3.complexity = 2;
 		m3.target_count = 3;
 		m3.target_type = "files";
@@ -66,8 +66,8 @@ class StoryManager {
 		missions.insert_last(m3);
 
 		Mission m4;
-		m4.title = "Заметай следы";
-		m4.description = "Предыдущий хакер оставил следы. Проникните на сервер логов и удалите все записи. Если поднять тревогу, сервер усилят.";
+		m4.title = tr("Cover your tracks", "Заметай следы");
+		m4.description = tr("A previous hacker left traces. Break into the log server and delete every record. If you raise the alarm, the server will be hardened.", "Предыдущий хакер оставил следы. Проникните на сервер логов и удалите все записи. Если поднять тревогу, сервер усилят.");
 		m4.complexity = 3;
 		m4.target_count = 1;
 		m4.target_type = "logs";
@@ -76,8 +76,8 @@ class StoryManager {
 		missions.insert_last(m4);
 
 		Mission m5;
-		m5.title = "Ключ шифрования";
-		m5.description = "На сервере хранится ключ шифрования. Мощный фаервол, но шифрование устаревшее.";
+		m5.title = tr("Encryption key", "Ключ шифрования");
+		m5.description = tr("The server stores an encryption key. Strong firewall, but outdated encryption.", "На сервере хранится ключ шифрования. Мощный фаервол, но шифрование устаревшее.");
 		m5.complexity = 3;
 		m5.target_count = 1;
 		m5.target_type = "encryption";
@@ -86,8 +86,8 @@ class StoryManager {
 		missions.insert_last(m5);
 
 		Mission m6;
-		m6.title = "Двойной агент";
-		m6.description = "Конкуренты тоже охотятся за целью. Доберитесь до данных первыми. Скорость важнее скрытности.";
+		m6.title = tr("Double agent", "Двойной агент");
+		m6.description = tr("Competitors are after the same target. Get the data first. Speed matters more than stealth.", "Конкуренты тоже охотятся за целью. Доберитесь до данных первыми. Скорость важнее скрытности.");
 		m6.complexity = 4;
 		m6.target_count = 2;
 		m6.target_type = "server";
@@ -96,8 +96,8 @@ class StoryManager {
 		missions.insert_last(m6);
 
 		Mission m7;
-		m7.title = "Обход IDS";
-		m7.description = "На цели установлена современная IDS. Одна ошибка — и вся подсеть блокируется. Только скрытность.";
+		m7.title = tr("IDS bypass", "Обход IDS");
+		m7.description = tr("The target runs a modern IDS. One mistake and the whole subnet gets locked. Stealth only.", "На цели установлена современная IDS. Одна ошибка — и вся подсеть блокируется. Только скрытность.");
 		m7.complexity = 4;
 		m7.target_count = 1;
 		m7.target_type = "server";
@@ -106,8 +106,8 @@ class StoryManager {
 		missions.insert_last(m7);
 
 		Mission m8;
-		m8.title = "Крот";
-		m8.description = "Кто-то внутри организации клиента сливает данные. Найдите сервер крота и скачайте логи переписки.";
+		m8.title = tr("The mole", "Крот");
+		m8.description = tr("Someone inside the client's organization is leaking data. Find the mole's server and download the chat logs.", "Кто-то внутри организации клиента сливает данные. Найдите сервер крота и скачайте логи переписки.");
 		m8.complexity = 4;
 		m8.target_count = 2;
 		m8.target_type = "server";
@@ -116,8 +116,8 @@ class StoryManager {
 		missions.insert_last(m8);
 
 		Mission m9;
-		m9.title = "Zero Day";
-		m9.description = "Свежеобнаруженный эксплойт. Используйте его для взлома мейнфрейма мегакорпорации. Они узнают, так что работайте быстро.";
+		m9.title = tr("Zero Day", "Zero Day");
+		m9.description = tr("A freshly discovered exploit. Use it to break into the megacorp mainframe. They will know, so work fast.", "Свежеобнаруженный эксплойт. Используйте его для взлома мейнфрейма мегакорпорации. Они узнают, так что работайте быстро.");
 		m9.complexity = 5;
 		m9.target_count = 3;
 		m9.target_type = "files";
@@ -126,8 +126,8 @@ class StoryManager {
 		missions.insert_last(m9);
 
 		Mission m10;
-		m10.title = "Финальный след";
-		m10.description = "Клиент вас сжёг. Взломайте его личный сервер, удалите все улики и добудьте доказательства предательства. Правил нет.";
+		m10.title = tr("Final trace", "Финальный след");
+		m10.description = tr("The client burned you. Hack his personal server, wipe all evidence and get proof of the betrayal. No rules.", "Клиент вас сжёг. Взломайте его личный сервер, удалите все улики и добудьте доказательства предательства. Правил нет.");
 		m10.complexity = 5;
 		m10.target_count = 2;
 		m10.target_type = "evidence";

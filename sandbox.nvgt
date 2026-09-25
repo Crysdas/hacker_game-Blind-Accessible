@@ -15,12 +15,12 @@ class Sandbox {
 
 	void start() {
 		active = true;
-		audio.speak("Песочница запущена. Целей: " + server_count + ", сложность: " + ids_level + ".", true);
+		audio.speak(tr("Sandbox started. Targets: ", "Песочница запущена. Целей: ") + server_count + tr(", difficulty: ", ", сложность: ") + ids_level + ".", true);
 	}
 
 	void stop() {
 		active = false;
-		audio.speak("Песочница завершена", true);
+		audio.speak(tr("Sandbox finished", "Песочница завершена"), true);
 	}
 
 	bool is_active() {

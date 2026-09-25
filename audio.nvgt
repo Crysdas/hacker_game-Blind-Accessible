@@ -49,6 +49,11 @@ class AudioManager {
 		load_sound("logo_hit", "sounds/ui/logo_hit.ogg");
 		load_sound("logo_chime", "sounds/ui/logo_chime.ogg");
 		load_sound("logo_sparkle", "sounds/ui/logo_sparkle.ogg");
+		load_sound("menu_move", "sounds/ui/menu_move.ogg");
+		load_sound("target_found", "sounds/ui/target_found.ogg");
+		load_sound("mission_success", "sounds/ui/mission_success.ogg");
+		load_sound("mission_new", "sounds/ui/mission_new.ogg");
+		load_sound("hacked", "sounds/alarm/hacked.ogg");
 		load_all_tones();
 		loaded = true;
 	}
@@ -223,6 +228,10 @@ class AudioManager {
 			if (@s != null) s.volume = 0.85;
 		}
 		play_loaded("click");
+	}
+
+	void menu_move() {
+		play_loaded("menu_move");
 	}
 
 	void power_up() {

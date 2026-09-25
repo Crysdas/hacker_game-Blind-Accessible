@@ -24,7 +24,7 @@ class GameMenu {
 		active = true;
 		cursor = 0;
 		audio.menu_click();
-		audio.speak("Меню, всего " + items.length() + " пунктов. " + items[0] + ". Стрелки — листать, Enter — выбор, Escape — назад.", true);
+		audio.speak(tr("Menu, ", "Меню, ") + items.length() + tr(" items. ", " пунктов. ") + items[0] + tr(". Arrows — move, Enter — select, Escape — back.", ". Стрелки — листать, Enter — выбор, Escape — назад."), true);
 	}
 
 	void close() {
@@ -42,32 +42,52 @@ class GameMenu {
 		}
 	}
 
+	int get_selected() {
+		return cursor;
+	}
+
+	void move_first() {
+		if (cursor > 0) {
+			cursor = 0;
+			audio.menu_move();
+			audio.speak(items[cursor], true);
+		} else {
+			audio.terminal_beep();
+		}
+	}
+
+	void move_last() {
+		if (items.length() > 0 && cursor < int(items.length()) - 1) {
+			cursor = int(items.length()) - 1;
+			audio.menu_move();
+			audio.speak(items[cursor], true);
+		} else {
+			audio.terminal_beep();
+		}
+	}
+
 	bool move_up() {
 		if (cursor > 0) {
 			cursor--;
-			audio.menu_click();
+			audio.menu_move();
 			audio.speak(items[cursor], true);
 			return true;
 		}
 		audio.terminal_beep();
-		audio.speak("Это первый пункт меню.", true);
+		audio.speak(tr("This is the first menu item.", "Это первый пункт меню."), true);
 		return false;
 	}
 
 	bool move_down() {
 		if (cursor < int(items.length()) - 1) {
 			cursor++;
-			audio.menu_click();
+			audio.menu_move();
 			audio.speak(items[cursor], true);
 			return true;
 		}
 		audio.terminal_beep();
-		audio.speak("Это последний пункт меню.", true);
+		audio.speak(tr("This is the last menu item.", "Это последний пункт меню."), true);
 		return false;
-	}
-
-	int get_selected() {
-		return cursor;
 	}
 };
 
@@ -92,7 +112,7 @@ class ContextMenu {
 		active = true;
 		cursor = 0;
 		audio.menu_click();
-		audio.speak("Контекстное меню. " + items[0] + ". Используйте стрелки.", true);
+		audio.speak(tr("Context menu. ", "Контекстное меню. ") + items[0] + tr(". Use arrows.", ". Используйте стрелки."), true);
 	}
 
 	void close() {
@@ -103,10 +123,34 @@ class ContextMenu {
 		return active;
 	}
 
+	int get_selected() {
+		return cursor;
+	}
+
+	void move_first() {
+		if (cursor > 0) {
+			cursor = 0;
+			audio.menu_move();
+			audio.speak(items[cursor], true);
+		} else {
+			audio.terminal_beep();
+		}
+	}
+
+	void move_last() {
+		if (items.length() > 0 && cursor < int(items.length()) - 1) {
+			cursor = int(items.length()) - 1;
+			audio.menu_move();
+			audio.speak(items[cursor], true);
+		} else {
+			audio.terminal_beep();
+		}
+	}
+
 	bool move_up() {
 		if (cursor > 0) {
 			cursor--;
-			audio.menu_click();
+			audio.menu_move();
 			audio.speak(items[cursor], true);
 			return true;
 		}
@@ -117,15 +161,11 @@ class ContextMenu {
 	bool move_down() {
 		if (cursor < int(items.length()) - 1) {
 			cursor++;
-			audio.menu_click();
+			audio.menu_move();
 			audio.speak(items[cursor], true);
 			return true;
 		}
 		audio.terminal_beep();
 		return false;
-	}
-
-	int get_selected() {
-		return cursor;
 	}
 };

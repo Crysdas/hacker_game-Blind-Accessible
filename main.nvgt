@@ -1,3 +1,11 @@
+// Locale selector must be visible to all includes (menu.nvgt, commands.nvgt...)
+int ui_lang = 0; // 0 русский, 1 английский
+
+string tr(string en, string ru) {
+	if (ui_lang == 1) return en;
+	return ru;
+}
+
 #include "speech.nvgt"
 #include "audio.nvgt"
 #include "terminal.nvgt"
@@ -205,7 +213,13 @@ log.log("show_splash()");
 		log.log("show_main_menu()");
 		mode = MODE_NONE;
 		start_menu_music();
-		string[] items = {"Сюжет — 10 миссий", "Песочница — свободная игра", "Лаборатория — тренировка", "Настройки", "Выход"};
+		string[] items = {
+			tr("Story — 10 missions", "Сюжет — 10 миссий"),
+			tr("Sandbox — free play", "Песочница — свободная игра"),
+			tr("Lab — training", "Лаборатория — тренировка"),
+			tr("Settings", "Настройки"),
+			tr("Exit", "Выход")
+		};
 		game_menu.set_items(items);
 		game_menu.open();
 
@@ -213,6 +227,10 @@ log.log("show_splash()");
 			wait(5);
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+			if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 			if (key_pressed(KEY_RETURN)) {
 				int sel = game_menu.get_selected();
 				game_menu.close();
@@ -246,12 +264,12 @@ log.log("show_splash()");
 		log.log("start_story()");
 		mode = MODE_STORY;
 		stop_menu_music();
-		audio.speak("Сюжетный режим. Вы хакер-фрилансер. Ваш клиент свяжется с вами.", true);
+		audio.speak(tr("Story mode. You are a freelance hacker. Your client will contact you.", "Сюжетный режим. Вы хакер-фрилансер. Ваш клиент свяжется с вами."), true);
 		wait(500);
 		Mission@ m = story.get_current_mission();
 		if (@m != null) {
 			log.log("Mission: " + m.title);
-			audio.speak("Миссия " + (story.get_current_index() + 1) + ": " + m.title, true);
+			audio.speak(tr("Mission ", "Миссия ") + (story.get_current_index() + 1) + ": " + m.title, true);
 			wait(300);
 			audio.speak(m.description, true);
 		} else {
@@ -270,11 +288,15 @@ log.log("show_splash()");
 	}
 
 	private void set_sandbox_params() {
-		string[] scenario_types = {"Сеть — взлом серверов", "Люди — социальная инженерия", "Системы — взлом инфраструктуры"};
+		string[] scenario_types = {
+			tr("Network — hack servers", "Сеть — взлом серверов"),
+			tr("People — social engineering", "Люди — социальная инженерия"),
+			tr("Systems — hack infrastructure", "Системы — взлом инфраструктуры")
+		};
 		string target_type = "server";
 		int servers = 5, ids = 1;
 
-		audio.speak("Выберите сценарий: стрелки, Enter — подтвердить.", true);
+		audio.speak(tr("Choose a scenario: arrows, Enter to confirm.", "Выберите сценарий: стрелки, Enter — подтвердить."), true);
 		wait(300);
 		int sel = 0;
 		bool sc_done = false;
@@ -295,42 +317,42 @@ log.log("show_splash()");
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 		}
 
-		audio.speak("Число целей: стрелки, Enter — подтвердить.", true);
+		audio.speak(tr("Target count: arrows, Enter to confirm.", "Число целей: стрелки, Enter — подтвердить."), true);
 		wait(200);
 		bool done = false;
 		while (!done) {
 			wait(5);
 			if (key_pressed(KEY_UP)) {
 				servers = servers < 20 ? servers + 1 : 3;
-				audio.speak("" + servers + " целей", true);
+				audio.speak("" + servers + tr(" targets", " целей"), true);
 				wait(120);
 			}
 			if (key_pressed(KEY_DOWN)) {
 				servers = servers > 3 ? servers - 1 : 20;
-				audio.speak("" + servers + " целей", true);
+				audio.speak("" + servers + tr(" targets", " целей"), true);
 				wait(120);
 			}
 			if (key_pressed(KEY_RETURN)) {
-				audio.speak("Сложность защиты: стрелки — изменить, Enter — готово.", true);
+				audio.speak(tr("Defense difficulty: arrows — change, Enter — done.", "Сложность защиты: стрелки — изменить, Enter — готово."), true);
 				wait(200);
 				bool done_ids = false;
 				while (!done_ids) {
 					wait(5);
 					if (key_pressed(KEY_UP)) {
 						ids = ids < 5 ? ids + 1 : 0;
-						audio.speak("Сложность " + ids, true);
+						audio.speak(tr("Difficulty ", "Сложность ") + ids, true);
 						wait(120);
 					}
 					if (key_pressed(KEY_DOWN)) {
 						ids = ids > 0 ? ids - 1 : 5;
-						audio.speak("Сложность " + ids, true);
+						audio.speak(tr("Difficulty ", "Сложность ") + ids, true);
 						wait(120);
 					}
 					if (key_pressed(KEY_RETURN)) {
 						done_ids = true;
 					}
 					if (key_pressed(KEY_ESCAPE)) {
-						audio.speak("Настройка отменена", true);
+						audio.speak(tr("Setup cancelled", "Настройка отменена"), true);
 						servers = 5; ids = 1; target_type = "server";
 						done_ids = true;
 					}
@@ -340,7 +362,7 @@ log.log("show_splash()");
 				done = true;
 			}
 			if (key_pressed(KEY_ESCAPE)) {
-				audio.speak("Настройка отменена", true);
+				audio.speak(tr("Setup cancelled", "Настройка отменена"), true);
 				servers = 5; ids = 1; target_type = "server";
 				done = true;
 			}
@@ -348,16 +370,16 @@ log.log("show_splash()");
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 		}
 		sandbox.configure(servers, ids);
-		string type_name = target_type == "person" ? "социальной инженерии" : target_type == "system" ? "систем" : "серверов";
+		string type_name = target_type == "person" ? tr("social engineering", "социальной инженерии") : target_type == "system" ? tr("systems", "систем") : tr("servers", "серверов");
 		sandbox.set_target_type(target_type);
 		sandbox.start();
-		audio.speak("Песочница: " + servers + " целей, тип: " + type_name + ", сложность " + ids + ".", true);
+		audio.speak(tr("Sandbox: ", "Песочница: ") + servers + tr(" targets, type: ", " целей, тип: ") + type_name + tr(", difficulty ", ", сложность ") + ids + ".", true);
 	}
 
 	private void init_sandbox_network() {
 		network.generate_scenario(sandbox.get_server_count(), sandbox.get_target_type(), sandbox.get_ids_level());
 		wait(200);
-		audio.speak("Сгенерировано " + sandbox.get_server_count() + " целей.", false);
+		audio.speak(tr("Generated ", "Сгенерировано ") + sandbox.get_server_count() + tr(" targets.", " целей."), false);
 	}
 
 	private void start_lab() {
@@ -399,6 +421,7 @@ log.log("show_splash()");
 			f.write("voice=" + voice_mode + "\n");
 			f.write("lang=" + speech_language + "\n");
 			f.write("spkv=" + speech_volume + "\n");
+			f.write("uilang=" + ui_lang + "\n");
 			f.close();
 			log.log("Settings saved");
 		} else {
@@ -420,6 +443,7 @@ log.log("show_splash()");
 					else if (key == "voice") voice_mode = parse_int(val);
 					else if (key == "lang") speech_language = parse_int(val);
 					else if (key == "spkv") speech_volume = parse_int(val);
+					else if (key == "uilang") ui_lang = parse_int(val);
 				}
 				line = f.read_line();
 			}
@@ -432,6 +456,8 @@ log.log("show_splash()");
 			if (speech_language > 1) speech_language = 1;
 			if (speech_volume < 0) speech_volume = 0;
 			if (speech_volume > 2) speech_volume = 2;
+			if (ui_lang < 0) ui_lang = 0;
+			if (ui_lang > 1) ui_lang = 1;
 			log.log("Settings loaded: music=" + music_level + ", sfx=" + (sfx_enabled ? "1" : "0") + ", voice=" + voice_mode + ", lang=" + speech_language + ", spkv=" + speech_volume);
 		} else {
 			log.log("No settings file, using defaults");
@@ -445,8 +471,8 @@ log.log("show_splash()");
 	}
 
 	private string voice_label() {
-		if (voice_mode == 0) return "Скринридер (NVDA)";
-		return "Системный голос (SAPI)";
+		if (voice_mode == 0) return tr("Screen reader (NVDA)", "Скринридер (NVDA)");
+		return tr("System voice (SAPI)", "Системный голос (SAPI)");
 	}
 
 	private string lang_label() {
@@ -454,20 +480,26 @@ log.log("show_splash()");
 		return "English";
 	}
 
+	private string ui_lang_label() {
+		if (ui_lang == 0) return "Русский";
+		return "English";
+	}
+
 	private string speech_vol_label() {
-		if (speech_volume == 1) return "громко";
-		if (speech_volume == 2) return "тише";
-		return "норма";
+		if (speech_volume == 1) return tr("loud", "громко");
+		if (speech_volume == 2) return tr("quiet", "тише");
+		return tr("normal", "норма");
 	}
 
 	private void show_settings_menu() {
 		string[] items = {
-			"Музыка: " + music_label(),
-			"Звуки: " + (sfx_enabled ? "включены" : "выключены"),
-			"Голос: " + voice_label(),
-			"Язык речи: " + lang_label(),
-			"Громкость речи: " + speech_vol_label(),
-			"Вернуться в меню"
+			tr("Music: ", "Музыка: ") + music_label(),
+			tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")),
+			tr("Voice: ", "Голос: ") + voice_label(),
+			tr("Speech language: ", "Язык речи: ") + lang_label(),
+			tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
+			tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
+			tr("Back to menu", "Вернуться в меню")
 		};
 		game_menu.set_items(items);
 		game_menu.open();
@@ -476,42 +508,52 @@ log.log("show_splash()");
 			wait(5);
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+			if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 			if (key_pressed(KEY_RETURN)) {
 				int sel = game_menu.get_selected();
 				if (sel == 0) {
 					music_level = (music_level + 1) % 3;
 					apply_music_volume();
 					save_settings();
-					game_menu.set_item(0, "Музыка: " + music_label());
-					audio.speak("Музыка: " + music_label(), true);
+					game_menu.set_item(0, tr("Music: ", "Музыка: ") + music_label());
+					audio.speak(tr("Music: ", "Музыка: ") + music_label(), true);
 				} else if (sel == 1) {
 					sfx_enabled = !sfx_enabled;
 					audio.set_sfx_enabled(sfx_enabled);
 					save_settings();
-					game_menu.set_item(1, "Звуки: " + (sfx_enabled ? "включены" : "выключены"));
-					audio.speak("Звуки: " + (sfx_enabled ? "включены" : "выключены"), true);
+					game_menu.set_item(1, tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")));
+					audio.speak(tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")), true);
 				} else if (sel == 2) {
 					voice_mode = (voice_mode + 1) % 2;
 					init_tts_voice();
 					save_settings();
-					game_menu.set_item(2, "Голос: " + voice_label());
-					audio.speak("Голос: " + voice_label(), true);
-					audio.speak("Проверка голоса. Раз, два, три.", true);
+					game_menu.set_item(2, tr("Voice: ", "Голос: ") + voice_label());
+					audio.speak(tr("Voice: ", "Голос: ") + voice_label(), true);
+					audio.speak(tr("Voice check. One, two, three.", "Проверка голоса. Раз, два, три."), true);
 				} else if (sel == 3) {
 					speech_language = (speech_language + 1) % 2;
 					init_tts_voice();
 					save_settings();
-					game_menu.set_item(3, "Язык речи: " + lang_label());
-					audio.speak("Язык речи: " + lang_label(), true);
-					audio.speak("Проверка. Раз, два, три.", true);
+					game_menu.set_item(3, tr("Speech language: ", "Язык речи: ") + lang_label());
+					audio.speak(tr("Speech language: ", "Язык речи: ") + lang_label(), true);
+					audio.speak(tr("Voice check. One, two, three.", "Проверка. Раз, два, три."), true);
 				} else if (sel == 4) {
 					speech_volume = (speech_volume + 1) % 3;
 					init_tts_voice();
 					save_settings();
-					game_menu.set_item(4, "Громкость речи: " + speech_vol_label());
-					audio.speak("Громкость речи: " + speech_vol_label(), true);
-					audio.speak("Проверка", true);
+					game_menu.set_item(4, tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label());
+					audio.speak(tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(), true);
+					audio.speak(tr("Test", "Проверка"), true);
 				} else if (sel == 5) {
+					ui_lang = (ui_lang + 1) % 2;
+					save_settings();
+					game_menu.set_item(5, tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label());
+					audio.speak(tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(), true);
+					audio.speak(tr("This game is now in English.", "Игра теперь на русском языке."), true);
+				} else if (sel == 6) {
 					game_menu.close();
 					show_main_menu();
 					return;
@@ -527,8 +569,26 @@ log.log("show_splash()");
 		}
 	}
 
+	private void music_adjust(int step) {
+		int new_level = music_level + step;
+		if (new_level < 0) new_level = 0;
+		if (new_level > 2) new_level = 2;
+		if (new_level != music_level) {
+			music_level = new_level;
+			apply_music_volume();
+			save_settings();
+		}
+		audio.speak(tr("Music: ", "Музыка: ") + music_label(), true);
+	}
+
 	private void show_lab_menu() {
-		string[] items = {"Подбор пароля (bruteforce)", "Взлом шифрования (crack)", "Обход фаервола (firewall)", "Сканирование портов", "Вернуться в меню"};
+		string[] items = {
+			tr("Password bruteforce", "Подбор пароля (bruteforce)"),
+			tr("Encryption crack", "Взлом шифрования (crack)"),
+			tr("Firewall bypass", "Обход фаервола (firewall)"),
+			tr("Port scanning", "Сканирование портов"),
+			tr("Back to menu", "Вернуться в меню")
+		};
 		game_menu.set_items(items);
 		game_menu.open();
 
@@ -536,19 +596,23 @@ log.log("show_splash()");
 			wait(5);
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+			if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 			if (key_pressed(KEY_RETURN)) {
 				int sel = game_menu.get_selected();
 				game_menu.close();
 				if (sel == 0) {
-					audio.speak("Тренировка подбора пароля. Сложность: 3.", true);
+					audio.speak(tr("Password bruteforce training. Difficulty: 3.", "Тренировка подбора пароля. Сложность: 3."), true);
 					hacking.bruteforce(3);
 					show_lab_menu();
 				} else if (sel == 1) {
-					audio.speak("Тренировка взлома шифрования. Сложность: 3.", true);
+					audio.speak(tr("Encryption crack training. Difficulty: 3.", "Тренировка взлома шифрования. Сложность: 3."), true);
 					hacking.crack_encryption(3);
 					show_lab_menu();
 				} else if (sel == 2) {
-					audio.speak("Тренировка обхода фаервола. Сложность: 3.", true);
+					audio.speak(tr("Firewall bypass training. Difficulty: 3.", "Тренировка обхода фаервола. Сложность: 3."), true);
 					hacking.firewall_bypass(3);
 					show_lab_menu();
 				} else if (sel == 3) {
@@ -588,7 +652,7 @@ log.log("show_splash()");
 		if (terminal.command_count() == 0) {
 			init_terminal_commands();
 		}
-		audio.speak("Терминал готов. Стрелки — выбрать, Enter — выполнить. Клавиши: S E C F B K M D X H. Tab — навигация.", true);
+		audio.speak(tr("Terminal ready. Arrows — choose, Enter — run. Keys: S E C F B K M D X H. Tab — switch focus.", "Терминал готов. Стрелки — выбрать, Enter — выполнить. Клавиши: S E C F B K M D X H. Tab — навигация."), true);
 	}
 
 	private void handle_input() {
@@ -600,6 +664,15 @@ log.log("show_splash()");
 		if (key_pressed(KEY_RIGHT)) {
 			audio.history_forward();
 			wait(100);
+			return;
+		}
+
+		if (key_pressed(KEY_PAGEUP)) {
+			music_adjust(1);
+			return;
+		}
+		if (key_pressed(KEY_PAGEDOWN)) {
+			music_adjust(-1);
 			return;
 		}
 
@@ -618,11 +691,11 @@ log.log("show_splash()");
 			if (focus == FOCUS_TERMINAL) {
 				focus = FOCUS_RESULTS;
 				audio.terminal_click();
-				audio.speak("Результаты", true);
+				audio.speak(tr("Results", "Результаты"), true);
 			} else {
 				focus = FOCUS_TERMINAL;
 				audio.terminal_click();
-				audio.speak("Ввод команд", true);
+				audio.speak(tr("Command input", "Ввод команд"), true);
 			}
 			wait(150);
 			return;
@@ -737,7 +810,7 @@ log.log("show_splash()");
 				Server@ s = network.get_current();
 				if (@s != null && s.compromised) {
 					audio.terminal_beep();
-					audio.speak("Сервер уже взломан. Отключитесь (X) для сканирования новых целей.", true);
+					audio.speak(tr("Server already hacked. Disconnect (X) to scan new targets.", "Сервер уже взломан. Отключитесь (X) для сканирования новых целей."), true);
 					return;
 				}
 				// Disconnect before scanning new network
@@ -759,20 +832,21 @@ log.log("show_splash()");
 				network.generate(count);
 			}
 			wait(300);
-			audio.speak("Найдено " + network.server_count() + " серверов.", false);
+			audio.play_sound("target_found");
+			audio.speak(tr("Found ", "Найдено ") + network.server_count() + tr(" servers.", " серверов."), false);
 			for (int i = 0; i < network.server_count(); i++) {
 				Server@ s = network.get_server(i);
 				if (@s != null) {
 					wait(200);
 					audio.terminal_click();
-					audio.speak("Сервер " + (i + 1) + ": " + s.hostname + " [" + s.ip + "]", true);
+					audio.speak(tr("Server ", "Сервер ") + (i + 1) + ": " + s.hostname + " [" + s.ip + "]", true);
 				}
 			}
 			wait(150);
 			focus = FOCUS_RESULTS;
 			current_server = 0;
 			Server@ s = network.get_server(0);
-			if (@s != null) audio.speak("Выбран: " + s.hostname, false);
+			if (@s != null) audio.speak(tr("Selected: ", "Выбран: ") + s.hostname, false);
 
 			// In sandbox mode after scan, add more servers if pool getting low
 			if (mode == MODE_SANDBOX) {
@@ -784,20 +858,20 @@ log.log("show_splash()");
 		if (name == "connect") {
 			if (current_server < 0 || network.server_count() == 0) {
 				audio.error_beep();
-				audio.speak("Нет серверов. Сначала scan.", true);
+				audio.speak(tr("No servers. Run scan first.", "Нет серверов. Сначала scan."), true);
 				return;
 			}
 			Server@ s = network.get_server(current_server);
 			if (@s == null) return;
 			if (s.compromised) {
-				audio.speak("Сервер уже взломан. Выберите другой.", true);
+				audio.speak(tr("Server already hacked. Pick another.", "Сервер уже взломан. Выберите другой."), true);
 				return;
 			}
 			terminal.set_hostname(s.hostname);
 			connected = true;
 			network.set_current(current_server);
 			audio.access_granted();
-			audio.speak("Подключён к " + s.hostname + ". Защита: фаервол " + s.firewall_strength + ", шифрование " + s.encryption_level + ".", true);
+			audio.speak(tr("Connected to ", "Подключён к ") + s.hostname + tr(". Protection: firewall ", ". Защита: фаервол ") + s.firewall_strength + tr(", encryption ", ", шифрование ") + s.encryption_level + ".", true);
 			return;
 		}
 
@@ -807,7 +881,7 @@ log.log("show_splash()");
 		else if (name == "bruteforce") {
 			if (cur is null || !connected) {
 				audio.error_beep();
-				audio.speak("Нет подключения.", true);
+				audio.speak(tr("No connection.", "Нет подключения."), true);
 				return;
 			}
 			cmd_bruteforce.execute(mode_to_string(), connected, cur);
@@ -825,23 +899,25 @@ log.log("show_splash()");
 				Mission@ m = story.get_current_mission();
 				if (@m != null) {
 					story.complete_mission(story.get_current_index());
-					audio.speak("Миссия " + (story.get_current_index() + 1) + " выполнена. Репутация: " + story.get_reputation(), true);
+					audio.play_sound("mission_success");
+					audio.speak(tr("Mission ", "Миссия ") + (story.get_current_index() + 1) + tr(" complete. Reputation: ", " выполнена. Репутация: ") + story.get_reputation(), true);
 					if (story.has_next()) {
 						story.advance();
 						Mission@ next = story.get_current_mission();
 						if (@next != null) {
-							audio.speak("Новая миссия: " + next.title + ". " + next.description, true);
+							audio.play_sound("mission_new");
+							audio.speak(tr("New mission: ", "Новая миссия: ") + next.title + ". " + next.description, true);
 						}
 						// Disconnect so player can scan new targets
 						disconnect();
 					} else {
-						audio.speak("Все миссии пройдены! Вы — мастер хакер.", true);
+						audio.speak(tr("All missions complete! You are a master hacker.", "Все миссии пройдены! Вы — мастер хакер."), true);
 						audio.success_beep();
 					}
 				}
 			}
 			if (ok && mode == MODE_SANDBOX) {
-				audio.speak("Данные скачаны. Ищите новый сервер.", true);
+				audio.speak(tr("Data downloaded. Find a new server.", "Данные скачаны. Ищите новый сервер."), true);
 				check_sandbox_refill();
 			}
 		}
@@ -858,11 +934,11 @@ log.log("show_splash()");
 		}
 		if (compromised >= total - 1 && total >= 2) {
 			string type_name = sandbox.get_target_type();
-			audio.speak("Большинство целей взломано. Генерирую новые...", true);
+			audio.speak(tr("Most targets hacked. Generating new ones...", "Большинство целей взломано. Генерирую новые..."), true);
 			wait(300);
 			audio.power_up();
 			network.generate_scenario(sandbox.get_server_count(), type_name, sandbox.get_ids_level());
-			audio.speak("Новая сеть: " + sandbox.get_server_count() + " целей.", true);
+			audio.speak(tr("New network: ", "Новая сеть: ") + sandbox.get_server_count() + tr(" targets.", " целей."), true);
 			if (connected) {
 				connected = false;
 				terminal.set_hostname("localhost");
@@ -886,8 +962,8 @@ log.log("show_splash()");
 				current_server = current_server > 0 ? current_server - 1 : 0;
 				Server@ s = network.get_server(current_server);
 				if (@s != null) {
-					string status = s.compromised ? ", взломан" : "";
-					audio.speak("Сервер " + s.hostname + " [" + s.ip + "]" + status, true);
+					string status = s.compromised ? tr(", hacked", ", взломан") : "";
+					audio.speak(tr("Server ", "Сервер ") + s.hostname + " [" + s.ip + "]" + status, true);
 				}
 			} else {
 				audio.terminal_beep();
@@ -899,8 +975,8 @@ log.log("show_splash()");
 				current_server++;
 				Server@ s = network.get_server(current_server);
 				if (@s != null) {
-					string status = s.compromised ? ", взломан" : "";
-					audio.speak("Сервер " + s.hostname + " [" + s.ip + "]" + status, true);
+					string status = s.compromised ? tr(", hacked", ", взломан") : "";
+					audio.speak(tr("Server ", "Сервер ") + s.hostname + " [" + s.ip + "]" + status, true);
 				}
 			} else {
 				audio.terminal_beep();
@@ -915,19 +991,19 @@ log.log("show_splash()");
 		connected = false;
 		terminal.clear();
 		focus = FOCUS_TERMINAL;
-		audio.speak("Отключено.", true);
+		audio.speak(tr("Disconnected.", "Отключено."), true);
 	}
 
 	private void show_context_menu() {
 		string[] items;
 		if (mode == MODE_STORY) {
-			items = {"Вернуться в терминал", "Статус миссии", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Mission status", "Статус миссии"), tr("Main menu", "Главное меню")};
 		} else if (mode == MODE_SANDBOX) {
-			items = {"Вернуться в терминал", "Настройка песочницы", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Sandbox setup", "Настройка песочницы"), tr("Main menu", "Главное меню")};
 		} else if (mode == MODE_LAB) {
-			items = {"Вернуться в терминал", "Лаборатория", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Lab", "Лаборатория"), tr("Main menu", "Главное меню")};
 		} else {
-			items = {"Вернуться в терминал", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Main menu", "Главное меню")};
 		}
 		context_menu.set_items(items);
 		context_menu.open();
@@ -942,6 +1018,16 @@ log.log("show_splash()");
 			context_menu.move_down();
 			wait(120);
 		}
+		if (key_pressed(KEY_HOME)) {
+			context_menu.move_first();
+			wait(120);
+		}
+		if (key_pressed(KEY_END)) {
+			context_menu.move_last();
+			wait(120);
+		}
+		if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+		if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 		if (key_pressed(KEY_RETURN)) {
 			int sel = context_menu.get_selected();
 			context_menu.close();
@@ -975,16 +1061,16 @@ log.log("show_splash()");
 	}
 
 	private void show_mission_status() {
-		audio.speak("Миссия " + (story.get_current_index() + 1) + " из " + story.get_mission_count(), true);
+		audio.speak(tr("Mission ", "Миссия ") + (story.get_current_index() + 1) + tr(" of ", " из ") + story.get_mission_count(), true);
 		Mission@ m = story.get_current_mission();
 		if (@m != null) {
-			audio.speak("Текущая: " + m.title, true);
+			audio.speak(tr("Current: ", "Текущая: ") + m.title, true);
 		}
 		int completed_count = 0;
 		for (int i = 0; i < story.get_mission_count(); i++) {
 			if (story.is_completed(i)) completed_count++;
 		}
-		audio.speak("Выполнено: " + completed_count + ". Репутация: " + story.get_reputation(), true);
+		audio.speak(tr("Completed: ", "Выполнено: ") + completed_count + tr(". Reputation: ", ". Репутация: ") + story.get_reputation(), true);
 	}
 };
 
