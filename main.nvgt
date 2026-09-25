@@ -6,7 +6,15 @@ string tr(string en, string ru) {
 	return ru;
 }
 
-// platform+language aware picks: (desktop en, desktop ru, touch en, touch ru)
+// Returns a comparable version string (digits, letters, dots) - strips BOM/whitespace.
+string clean_version(string v) {
+	string r = "";
+	for (int i = 0; i < int(v.length()); i++) {
+		string c = v.substr(i, 1);
+		if ((c >= "0" && c <= "9") || (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c == "." || c == "-") r += c;
+	}
+	return r;
+}
 bool is_touch_ui() {
 	return system_is_mobile;
 }
@@ -276,8 +284,8 @@ g_touch.monitor();
 			audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
 			return;
 		}
-		string remote = h.response_body.replace("\n", "").replace("\r", "").replace(" ", "");
-		if (remote == "" || remote == GAME_VERSION) return;
+		string remote = clean_version(h.response_body);
+		if (remote == "" || remote == clean_version(GAME_VERSION)) return;
 		audio.play_sound("update_ping");
 		show_update_menu(remote);
 	}

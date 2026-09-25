@@ -107,6 +107,7 @@ void main() {
 	file_copy(root + "game.dat", rel + "game.dat", true);
 	file_copy(root + "README.md", rel + "README.md", true);
 	file_copy(root + "main.properties", rel + "main.properties", true);
+	if (file_exists(root + "AndroidManifest.xml")) file_copy(root + "AndroidManifest.xml", rel + "AndroidManifest.xml", true);
 
 	print("");
 	print("release/ ready. Next:");
