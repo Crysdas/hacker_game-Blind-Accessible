@@ -8,6 +8,12 @@ access granted/denied, warnings):
   Source: OpenGameArt - https://opengameart.org/content/512-sound-effects-8-bit-style
   License: CC0 1.0 Universal - https://creativecommons.org/publicdomain/zero/1.0/
 
+Keyboard sounds (terminal/click/type/beep - real mechanical keyboard
+  recordings, Cherry KC1000 through a Shure SM7B):
+  "Keyboard Soundpack #1 [Typing and Single Keystrokes]" by unicaegames
+  Source: OpenGameArt - https://opengameart.org/content/keyboard-soundpack-1-typing-and-single-keystrokes
+  License: CC0 1.0 Universal
+
 Synthesized tone files (tones/tone_*.wav, tones/tone_short_*.wav):
   Generated sine waves, public domain.
 

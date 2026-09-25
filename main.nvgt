@@ -91,11 +91,11 @@ class HackerGame {
 			log.log("Audio load FAILED: " + get_exception_info());
 		}
 		sound@ bgm = sound();
-		if (bgm.load("sounds/music/battle_with_shadow.mp3")) {
+		if (bgm.load("sounds/music/battle_with_shadow.ogg")) {
 			@music_player = @bgm;
 			log.log("Music loaded");
 		} else {
-			log.log("Music load FAILED (battle_with_shadow.mp3)");
+			log.log("Music load FAILED (battle_with_shadow.ogg)");
 		}
 
 		@terminal = Terminal(@audio);
