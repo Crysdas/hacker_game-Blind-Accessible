@@ -67,6 +67,17 @@ enum GameMode {
 // PACK_CONST
 
 const string SETTINGS_FILE = "hacksim_settings.txt";
+
+// Persistent settings location: PC uses a local file next to the game,
+// phones use the app's own writable data directory.
+string settings_path() {
+	if (is_touch_ui()) {
+		string p = get_preferences_path("", "hacksim");
+		if (p != "" && p.substr(p.length() - 1, 1) != "/" && p.substr(p.length() - 1, 1) != "\\") p += "/";
+		return p + "hacksim_settings.txt";
+	}
+	return SETTINGS_FILE;
+}
 const string GAME_VERSION = "1.1";
 const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
 const string UPDATE_ZIP_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.zip";
@@ -592,7 +603,7 @@ g_touch.monitor();
 
 	private void save_settings() {
 		file f;
-		if (f.open(SETTINGS_FILE, "w")) {
+		if (f.open(settings_path(), "w")) {
 			f.write("music=" + music_level + "\n");
 			f.write("sfx=" + (sfx_enabled ? "1" : "0") + "\n");
 			f.write("voice=" + voice_mode + "\n");
@@ -609,7 +620,7 @@ g_touch.monitor();
 
 	private void load_settings() {
 		file f;
-		if (f.open(SETTINGS_FILE, "r")) {
+		if (f.open(settings_path(), "r")) {
 			string line = f.read_line();
 			while (!line.is_empty()) {
 				int eq = line.find("=");
