@@ -240,7 +240,7 @@ private void setup_touch() {
 		if (wait_skip(700)) return;
 		audio.play_sound("logo_sparkle");
 		if (wait_skip(1900)) return;
-		audio.speak("Dich Maker Team представляет", true);
+		audio.speak(tr("Dich Maker Team presents", "Dich Maker Team представляет"), true);
 		if (wait_skip(800)) return;
 		audio.success_beep();
 		wait_skip(1400);
@@ -563,7 +563,7 @@ g_touch.monitor();
 		log.log("start_lab()");
 		mode = MODE_LAB;
 		stop_menu_music();
-		audio.speak("Лаборатория. Тренировка навыков взлома.", true);
+		audio.speak(tr("Lab. Training hacking skills.", "Лаборатория. Тренировка навыков взлома."), true);
 		wait(200);
 		show_lab_menu();
 	}
@@ -644,9 +644,9 @@ g_touch.monitor();
 	}
 
 	private string music_label() {
-		if (music_level == 0) return "выключена";
-		if (music_level == 1) return "тихая";
-		return "громкая";
+		if (music_level == 0) return tr("off", "выключена");
+		if (music_level == 1) return tr("quiet", "тихая");
+		return tr("loud", "громкая");
 	}
 
 	private string voice_label() {

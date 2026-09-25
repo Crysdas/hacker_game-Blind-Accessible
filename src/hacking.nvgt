@@ -62,7 +62,7 @@ g_touch.monitor();
 			if (!pressed) { audio.speak(tr("Missed!", "Пропуск!"), true); }
 			wait(100);
 		}
-		audio.speak("Попаданий: " + hits + " из " + required, true);
+		audio.speak(tr("Hits: ", "Попаданий: ") + hits + tr(" of ", " из ") + required, true);
 		return hits >= required - 1;
 	}
 
