@@ -48,6 +48,7 @@ class AudioManager {
 		load_sound("logo_riser", "sounds/ui/logo_riser.ogg");
 		load_sound("logo_hit", "sounds/ui/logo_hit.ogg");
 		load_sound("logo_chime", "sounds/ui/logo_chime.ogg");
+		load_sound("logo_sparkle", "sounds/ui/logo_sparkle.ogg");
 		load_all_tones();
 		loaded = true;
 	}

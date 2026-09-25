@@ -170,12 +170,28 @@ class HackerGame {
 log.log("show_splash()");
 		show_window("Hacker Simulator: Zero Day");
 		set_application_name("Hacker Simulator: Zero Day");
-		audio.play_logo_intro();
-		wait(2600);
+		audio.play_sound("logo_riser");
+		if (wait_skip(2150)) return;
+		audio.play_sound("logo_hit");
+		if (wait_skip(160)) return;
+		audio.play_sound("logo_chime");
+		if (wait_skip(700)) return;
+		audio.play_sound("logo_sparkle");
+		if (wait_skip(1900)) return;
 		audio.speak("Dich Maker Team представляет", true);
-		wait(800);
+		if (wait_skip(800)) return;
 		audio.success_beep();
-		wait(1400);
+		wait_skip(1400);
+	}
+
+	// Waits ms; returns true if the player pressed Enter/Space to skip.
+	private bool wait_skip(int ms) {
+		timer t;
+		while (t.elapsed < uint(ms)) {
+			wait(5);
+			if (key_pressed(KEY_RETURN) || key_pressed(KEY_SPACE)) return true;
+		}
+		return false;
 	}
 
 	private void show_title() {
