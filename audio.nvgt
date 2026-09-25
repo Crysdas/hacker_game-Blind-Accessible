@@ -6,6 +6,7 @@ class AudioManager {
 	private int[] tone_short_freqs;
 	private array<sound@> tone_short_handles;
 	private bool loaded;
+	bool sfx_enabled;
 	string last_spoken;
 	private string[] speech_history;
 	private int speech_cursor;
@@ -13,6 +14,7 @@ class AudioManager {
 
 	AudioManager() {
 		loaded = false;
+		sfx_enabled = true;
 		sound_names.resize(0);
 		sound_handles.resize(0);
 		tone_freqs.resize(0);
@@ -43,6 +45,9 @@ class AudioManager {
 		load_sound("access_granted", "sounds/Audio/doorOpen_000.ogg");
 		load_sound("access_denied", "sounds/Audio/doorClose_000.ogg");
 		load_sound("warning", "sounds/Audio/forceField_001.ogg");
+		load_sound("logo_riser", "sounds/ui/logo_riser.ogg");
+		load_sound("logo_hit", "sounds/ui/logo_hit.ogg");
+		load_sound("logo_chime", "sounds/ui/logo_chime.ogg");
 		load_all_tones();
 		loaded = true;
 	}
@@ -93,6 +98,7 @@ class AudioManager {
 	}
 
 	private void play_loaded(string name) {
+		if (!sfx_enabled) return;
 		int idx = find_sound(name);
 		if (idx < 0) return;
 		sound@ s = sound_handles[idx];
@@ -100,6 +106,19 @@ class AudioManager {
 			s.stop();
 			s.play();
 		}
+	}
+
+	void set_sfx_enabled(bool enabled) {
+		sfx_enabled = enabled;
+		terminal_click();
+	}
+
+	void play_logo_intro() {
+		play_loaded("logo_riser");
+		wait(2150);
+		play_loaded("logo_hit");
+		wait(140);
+		play_loaded("logo_chime");
 	}
 
 	void speak(string text, bool interrupt = true) {

@@ -16,3 +16,7 @@ Background music:
 
 Ambient hum (ambient/computer_hum.ogg):
   Kenney assets (CC0) - https://kenney.nl
+
+Logo intro (sounds/ui/logo_riser.ogg, logo_hit.ogg, logo_chime.ogg):
+  Synthesized with ffmpeg (pink-noise riser, low-frequency impact, bell
+  chime), stereo, public domain.
