@@ -18,6 +18,18 @@ class DigitPad : touch_interface {
 		if (g_touch_digit) touch_digit_change(-1);
 	}
 
+	void on_swipe_left(touch_screen_finger@ f) {
+		if (g_touch_digit) touch_digit_change(1);
+	}
+
+	void on_swipe_right(touch_screen_finger@ f) {
+		if (g_touch_digit) touch_digit_change(-1);
+	}
+
+	void on_single_tap(touch_screen_finger@ f, uint fc) {
+		if (g_touch_digit && g_touch_single) g_touch_digit_confirm = true;
+	}
+
 	void on_double_tap(touch_screen_finger@ f, uint fc) {
 		if (g_touch_digit) g_touch_digit_confirm = true;
 	}
@@ -29,6 +41,7 @@ class DigitPad : touch_interface {
 
 touch_interface@ g_digit_pad = null;
 bool g_touch_digit = false;
+bool g_touch_single = false;
 int g_touch_digit_val = 1;
 int g_touch_digit_max = 4;
 int g_touch_digit_last_spoken = 0;
@@ -73,7 +86,7 @@ void touch_exit_digit_mode() {
 // Returns the chosen digit (1..max) or -1 if the player cancelled.
 int touch_digit_input(int max) {
 	touch_enter_digit_mode(max);
-	speak(tr("Swipe up/down to choose the digit, double tap to enter, long press to cancel.", "Свайп вверх/вниз — выбрать цифру, двойной тап — ввод, долгий тап — выход."), true);
+	speak(tr("Swipe up/down or left/right to choose the digit, double tap to enter, long press to cancel.", "Свайп вверх/вниз или влево/вправо — выбрать цифру, двойной тап — ввод, долгий тап — выход."), true);
 	while (!g_touch_digit_confirm && !g_touch_digit_cancel) {
 		wait(5);
 		g_touch.monitor();
@@ -88,4 +101,19 @@ int touch_digit_input(int max) {
 		return -1;
 	}
 	return g_touch_digit_val;
+}
+
+// Waits for any single tap; used for the "tap once" mini-games. Returns false if cancelled.
+bool touch_single_tap() {
+	g_touch_single = true;
+	touch_enter_digit_mode(1);
+	speak(tr("Tap the screen.", "Коснитесь экрана."), true);
+	while (!g_touch_digit_confirm && !g_touch_digit_cancel) {
+		wait(5);
+		g_touch.monitor();
+	}
+	touch_exit_digit_mode();
+	g_touch_single = false;
+	if (g_touch_digit_cancel) return false;
+	return true;
 }
