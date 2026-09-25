@@ -411,9 +411,13 @@ g_touch.monitor();
 		if (h.status_code == 200 && opened) {
 			string chunk = h.response_body;
 			if (chunk != "") f.write(chunk);
-			f.close();
-			audio.play_sound("update_done");
-			audio.speak(tr("Update downloaded: ", "Обновление скачано: ") + save_name + tr(". Run it to install, then restart the game.", ". Запустите его и перезапустите игру."), true);
+f.close();
+				audio.play_sound("update_done");
+				audio.speak(tr("Update downloaded: ", "Обновление скачано: ") + save_name + tr(". Run it to install, then restart the game.", ". Запустите его и перезапустите игру."), true);
+				if (!is_touch_ui()) {
+					int keep = question(tr("Update downloaded", "Обновление скачано"), tr("Keep the update file?", "Оставить файл обновления?"));
+					if (keep != 1) { file_delete(save_name); audio.speak(tr("Update file removed.", "Файл обновления удалён."), false); }
+				}
 		} else {
 			if (opened) f.close();
 			file_delete(save_name);
