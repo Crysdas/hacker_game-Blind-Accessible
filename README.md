@@ -40,8 +40,9 @@ F (защита) → B (доступ) → K (шифрование) → D (ска
 
 ## Требования
 
-- [NVGT (Noliktor Game Toolkit)](https://nvgt.org) — движок для AngelScript
+- [NVGT (Noliktor Game Toolkit)](https://nvgt.org) — движок для AngelScript (0.88+)
 - Звуковые файлы в папке `sounds/`
+- Для запуска достаточно открыть `main.nvgt` в NVGT (двойным кликом или `nvgt main.nvgt`). Никаких файлов рядом не требуется — игра работает «из коробки».
 
 ## Установка — Windows
 

@@ -64,6 +64,25 @@ $distMain = Join-Path $dist "main.nvgt"
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $content = [System.IO.File]::ReadAllText($distMain, $utf8)
 $content = $content.Replace('#pragma asset "sounds"', '#pragma embed "game.dat"')
+# Inject the encrypted-pack bootstrap that is NOT part of the plain source
+# (keeps the source runnable on any NVGT 0.88+ which lacks pack_file).
+$content = $content.Replace('// PACK_CONST', 'const string GAME_ASSET_KEY = "0day-nvgt-2026-key";')
+$content = $content.Replace('// PACK_FIELD', 'private pack_file@ assets;')
+$packBlock = @"
+pack_file@ p = pack_file();
+		if (p.open("*", GAME_ASSET_KEY)) {
+			@assets = @p;
+			@sound_default_pack = @p;
+			log.log("Assets: embedded encrypted pack");
+		} else if (p.open("game.dat", GAME_ASSET_KEY)) {
+			@assets = @p;
+			@sound_default_pack = @p;
+			log.log("Assets: game.dat encrypted pack");
+		} else {
+			log.log("Assets: loose files");
+		}
+"@
+$content = $content.Replace('// PACK_BOOTSTRAP', $packBlock)
 [System.IO.File]::WriteAllText($distMain, $content, $utf8)
 # Verify: the UTF-8 byte sequence of "Сюжет" must survive the rewrite.
 # (No Cyrillic literals in this .ps1 - PowerShell 5.1 would mis-decode them.)

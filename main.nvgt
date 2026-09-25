@@ -31,7 +31,7 @@ enum GameMode {
 	MODE_LAB
 };
 
-const string GAME_ASSET_KEY = "0day-nvgt-2026-key";
+// PACK_CONST
 
 const string SETTINGS_FILE = "hacksim_settings.txt";
 int music_level = 2; // 0 выкл, 1 тихая, 2 громкая
@@ -59,7 +59,7 @@ class HackerGame {
 	private bool connected;
 	private string cmd_buffer;
 	private sound@ music_player;
-	private pack_file@ assets;
+	// PACK_FIELD
 
 	private Command@[] commands;
 	private ScanCommand@ cmd_scan;
@@ -78,18 +78,7 @@ class HackerGame {
 		log.start();
 		log.log("HackerGame constructor");
 
-		pack_file@ p = pack_file();
-		if (p.open("*", GAME_ASSET_KEY)) {
-			@assets = @p;
-			@sound_default_pack = @p;
-			log.log("Assets: embedded encrypted pack");
-		} else if (p.open("game.dat", GAME_ASSET_KEY)) {
-			@assets = @p;
-			@sound_default_pack = @p;
-			log.log("Assets: game.dat encrypted pack");
-		} else {
-			log.log("Assets: loose files");
-		}
+		// PACK_BOOTSTRAP
 
 		@audio = AudioManager();
 		try {
