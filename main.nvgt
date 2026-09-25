@@ -22,6 +22,7 @@ touch_gesture_manager g_touch;
 #include "src/log.nvgt"
 #include "src/commands.nvgt"
 #pragma asset "sounds"
+#pragma compiled_basename "hacksim"
 
 enum FocusArea {
 	FOCUS_TERMINAL,
@@ -172,11 +173,15 @@ g_touch.monitor();
 private void setup_touch() {
 		// Android/iOS gestures: left/right move in menus, up = back,
 		// double tap = select. Desktop is unaffected (no touch screen).
+		// 1- and 2-finger swipes both mapped for reliability on phones.
 		g_touch.add_touch_interface(touch_keyboard_interface(g_touch, {
 			{"swipe_left1f", KEY_UP},
 			{"swipe_right1f", KEY_DOWN},
 			{"swipe_up1f", KEY_ESCAPE},
-			{"double_tap1f", KEY_RETURN}
+			{"swipe_left2f", KEY_UP},
+			{"swipe_right2f", KEY_DOWN},
+			{"double_tap1f", KEY_RETURN},
+			{"double_tap2f", KEY_RETURN}
 		}));
 	}
 
