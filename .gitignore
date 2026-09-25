@@ -6,3 +6,7 @@ t2e.txt
 t2o.txt
 tse.txt
 tso.txt
+dist/
+main.exe
+game.dat
+tools/_*

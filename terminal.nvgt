@@ -32,7 +32,7 @@ class Terminal {
 
 	void add_command(string cmd) {
 		commands.insert_last(cmd);
-		all_commands.insert_last(cmd);
+		if (all_commands.find(cmd) < 0) all_commands.insert_last(cmd);
 		if (top == 0 && commands.length() > 1) top = 0;
 		cursor = all_commands.length() - 1;
 		audio.terminal_click();
@@ -40,7 +40,7 @@ class Terminal {
 
 	void add_command_silent(string cmd) {
 		commands.insert_last(cmd);
-		all_commands.insert_last(cmd);
+		if (all_commands.find(cmd) < 0) all_commands.insert_last(cmd);
 		if (top == 0 && commands.length() > 1) top = 0;
 		cursor = all_commands.length() - 1;
 	}

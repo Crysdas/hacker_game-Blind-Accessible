@@ -1,3 +1,4 @@
+#include "speech.nvgt"
 #include "audio.nvgt"
 #include "terminal.nvgt"
 #include "network.nvgt"
@@ -299,7 +300,7 @@ class HackerGame {
 	}
 
 	private void init_sandbox_network() {
-		network.generate_scenario(sandbox.get_server_count(), sandbox.get_target_type());
+		network.generate_scenario(sandbox.get_server_count(), sandbox.get_target_type(), sandbox.get_ids_level());
 		wait(200);
 		audio.speak("Сгенерировано " + sandbox.get_server_count() + " целей.", false);
 	}
@@ -507,7 +508,7 @@ class HackerGame {
 				network.generate(count);
 			} else if (mode == MODE_SANDBOX) {
 				count = sandbox.get_server_count();
-				network.generate_scenario(count, sandbox.get_target_type());
+				network.generate_scenario(count, sandbox.get_target_type(), sandbox.get_ids_level());
 			} else {
 				count = 3;
 				network.generate(count);
@@ -615,7 +616,7 @@ class HackerGame {
 			audio.speak("Большинство целей взломано. Генерирую новые...", true);
 			wait(300);
 			audio.power_up();
-			network.generate_scenario(sandbox.get_server_count(), type_name);
+			network.generate_scenario(sandbox.get_server_count(), type_name, sandbox.get_ids_level());
 			audio.speak("Новая сеть: " + sandbox.get_server_count() + " целей.", true);
 			if (connected) {
 				connected = false;

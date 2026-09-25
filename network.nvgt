@@ -29,10 +29,12 @@ class Server {
 		monitoring_level = 1;
 	}
 
-	void generate_random() {
+	void generate_random(int difficulty = 1) {
 		ip = "192.168." + random(1, 254) + "." + random(1, 254);
-		security_level = random(2, 6);
-		firewall_strength = random(2, security_level + 1);
+		security_level = difficulty + random(0, 1);
+		if (security_level < 1) security_level = 1;
+		if (security_level > 6) security_level = 6;
+		firewall_strength = random(1, security_level + 1);
 		encryption_level = random(1, security_level);
 
 		int port_count = random(2, 5);
@@ -47,13 +49,14 @@ class Server {
 		}
 	}
 
-	void generate_person() {
+	void generate_person(int difficulty = 1) {
 		string[] first_names = {"John", "Jane", "Alex", "Sam", "Chris", "Pat", "Morgan", "Taylor", "Jordan", "Riley"};
 		string[] last_names = {"Smith", "Doe", "Brown", "Wilson", "Lee", "Kim", "Chen", "Patel", "Garcia", "Jones"};
 		hostname = first_names[random(0, first_names.length() - 1)] + " " + last_names[random(0, last_names.length() - 1)];
 		ip = "—";
 		target_type = "person";
-		security_level = random(2, 5);
+		security_level = 1 + difficulty;
+		if (security_level > 5) security_level = 5;
 		firewall_strength = random(1, security_level);  // trust level
 		encryption_level = random(1, security_level);    // caution level
 		trust_level = firewall_strength;
@@ -66,12 +69,14 @@ class Server {
 		}
 	}
 
-	void generate_system() {
+	void generate_system(int difficulty = 1) {
 		string[] sys_names = {"DC-01", "NAS-core", "MAINFRAME", "TERMINAL-4", "DB-cluster", "APP-srv", "MONITOR", "CONTROL", "HONEYPOT", "VAULT"};
 		hostname = sys_names[random(0, sys_names.length() - 1)];
 		ip = "10.0." + random(1, 254) + "." + random(1, 254);
 		target_type = "system";
-		security_level = random(3, 6);
+		security_level = difficulty + 1;
+		if (security_level < 3) security_level = 3;
+		if (security_level > 6) security_level = 6;
 		firewall_strength = random(2, security_level + 2);
 		encryption_level = random(2, security_level + 1);
 		monitoring_level = random(1, 4);
@@ -107,14 +112,14 @@ class Network {
 		}
 	}
 
-	void generate_scenario(int count, string type) {
+	void generate_scenario(int count, string type, int difficulty = 1) {
 		servers.resize(0);
 		for (int i = 0; i < count; i++) {
 			Server s;
 			s.target_type = type;
-			if (type == "person") s.generate_person();
-			else if (type == "system") s.generate_system();
-			else s.generate_random();
+			if (type == "person") s.generate_person(difficulty);
+			else if (type == "system") s.generate_system(difficulty);
+			else s.generate_random(difficulty);
 			servers.insert_last(s);
 		}
 	}

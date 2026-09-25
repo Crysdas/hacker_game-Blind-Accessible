@@ -326,6 +326,49 @@ class HackingGame {
 	}
 
 	// Port scan: radar-style scanning with increasing pitch
+	void port_scan(const string[]&in ports) {
+		int[] well_known = {22, 80, 443, 3306, 8080, 8443};
+		audio.speak("Запуск сканера портов.", true);
+		audio.power_up();
+		wait(400);
+
+		audio.speak("Сканирование. Слушайте эхосигналы.", true);
+		wait(300);
+
+		for (uint i = 0; i < ports.length(); i++) {
+			int port = parse_int(ports[i]);
+			int base_freq = 300 + (port % 25) * 20;
+			float progress = float(i + 1) / float(ports.length());
+
+			for (int sweep = 0; sweep < 3; sweep++) {
+				int s_freq = base_freq + sweep * 100;
+				if (s_freq > 1100) s_freq = 1100;
+				audio.beep(float(s_freq), 60);
+				wait(60);
+			}
+
+			bool is_well_known = false;
+			for (int w = 0; w < int(well_known.length()); w++) {
+				if (port == well_known[w]) { is_well_known = true; break; }
+			}
+
+			if (is_well_known) {
+				audio.alert_beep();
+				audio.speak("Порт " + port + " — известная служба!", true);
+			} else {
+				audio.beep(float(base_freq + 200), 100);
+				audio.speak("Порт " + port, true);
+			}
+			wait(150);
+		}
+
+		audio.success_beep();
+		audio.speak("Сканирование завершено. Найдено " + ports.length() + " открытых портов.", false);
+		wait(200);
+		audio.speak("Нажмите E для детального перечисления.", false);
+	}
+
+	// Port scan: radar-style scanning with increasing pitch
 	void port_scan(int port_count) {
 		int[] well_known = {22, 80, 443, 3306, 8080, 8443};
 		audio.speak("Запуск сканера портов.", true);

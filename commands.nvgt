@@ -62,7 +62,7 @@ class EnumCommand : Command {
 			audio.speak("Уровень мониторинга: " + current.monitoring_level + "/5", true);
 			hacking.port_scan(current.open_ports.length());
 		} else {
-			hacking.port_scan(current.open_ports.length());
+			hacking.port_scan(current.open_ports);
 		}
 		return true;
 	}
@@ -141,9 +141,8 @@ class BruteforceCommand : Command {
 			audio.speak("Доступ получен! Используйте K для взлома шифрования.", true);
 		} else {
 			audio.error_beep();
-			if (current.alerted) {
-				audio.speak("Слишком много попыток! Цель насторожена.", true);
-			}
+			current.alert_ids();
+			audio.speak("Подбор неудачен! Цель заметила активность.", true);
 		}
 		return true;
 	}
