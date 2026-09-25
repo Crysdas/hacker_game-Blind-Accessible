@@ -54,6 +54,12 @@ New-Item -ItemType Directory -Path $dist | Out-Null
 Get-ChildItem $Root -Filter "*.nvgt" -File | Where-Object { $_.Name -notlike "_*" } | ForEach-Object {
     Copy-Item $_.FullName (Join-Path $dist $_.Name)
 }
+if (Test-Path (Join-Path $Root "src")) {
+    New-Item -ItemType Directory -Path (Join-Path $dist "src") | Out-Null
+    Get-ChildItem (Join-Path $Root "src") -Filter "*.nvgt" -File | ForEach-Object {
+        Copy-Item $_.FullName (Join-Path $dist "src") 
+    }
+}
 Copy-Item $dat (Join-Path $dist "game.dat")
 Copy-Item (Join-Path $Root "README.md") (Join-Path $dist "README.md") -ErrorAction SilentlyContinue
 
@@ -144,6 +150,8 @@ Remove-Item $prod -Recurse -Force
 Remove-Item $zip -Force
 Remove-Item (Join-Path $dist "game.dat") -Force -ErrorAction SilentlyContinue
 Get-ChildItem $dist -Filter "*.nvgt" -File | Remove-Item -Force
+$distSrc = Join-Path $dist "src"
+if (Test-Path $distSrc) { Remove-Item $distSrc -Recurse -Force }
 
 $exeBytes = [System.IO.File]::ReadAllBytes((Join-Path $outFolder ($OutName + ".exe")))
 $exeText = [System.Text.Encoding]::ASCII.GetString($exeBytes)

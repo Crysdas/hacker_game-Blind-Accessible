@@ -7,16 +7,16 @@ string tr(string en, string ru) {
 }
 
 #include "speech.nvgt"
-#include "audio.nvgt"
-#include "terminal.nvgt"
-#include "network.nvgt"
-#include "hacking.nvgt"
-#include "menu.nvgt"
-#include "story.nvgt"
-#include "sandbox.nvgt"
-#include "data.nvgt"
-#include "log.nvgt"
-#include "commands.nvgt"
+#include "src/audio.nvgt"
+#include "src/terminal.nvgt"
+#include "src/network.nvgt"
+#include "src/hacking.nvgt"
+#include "src/menu.nvgt"
+#include "src/story.nvgt"
+#include "src/sandbox.nvgt"
+#include "src/data.nvgt"
+#include "src/log.nvgt"
+#include "src/commands.nvgt"
 #pragma asset "sounds"
 
 enum FocusArea {
