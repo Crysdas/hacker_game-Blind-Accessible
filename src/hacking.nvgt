@@ -372,7 +372,7 @@ g_touch.monitor();
 		audio.success_beep();
 		audio.speak(tr("Scan complete. Found ", "Сканирование завершено. Найдено ") + ports.length() + tr(" open ports.", " открытых портов."), false);
 		wait(200);
-		audio.speak(tr("Press E for a detailed listing.", "Нажмите E для детального перечисления."), false);
+		audio.speak(tr("Run enum for a detailed listing.", "Для перечисления выполните enum."), false);
 	}
 
 	// Port scan: radar-style scanning with increasing pitch
@@ -421,6 +421,6 @@ g_touch.monitor();
 		audio.success_beep();
 		audio.speak(tr("Scan complete. Found ", "Сканирование завершено. Найдено ") + port_count + tr(" open ports.", " открытых портов."), false);
 		wait(200);
-		audio.speak(tr("Press E for a detailed listing.", "Нажмите E для детального перечисления."), false);
+		audio.speak(tr("Run enum for a detailed listing.", "Для перечисления выполните enum."), false);
 	}
 };

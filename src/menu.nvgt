@@ -24,7 +24,7 @@ class GameMenu {
 		active = true;
 		cursor = 0;
 		audio.menu_click();
-		audio.speak(tr("Menu, ", "Меню, ") + items.length() + tr(" items. ", " пунктов. ") + items[0] + tr(". Arrows — move, Enter — select, Escape — back.", ". Стрелки — листать, Enter — выбор, Escape — назад."), true);
+		audio.speak(tr("Menu, ", "Меню, ") + items.length() + tr(" items. ", " пунктов. ") + items[0] + ". " + hint_move() + ", " + hint_select() + ", " + hint_back() + ".", true);
 	}
 
 	void close() {

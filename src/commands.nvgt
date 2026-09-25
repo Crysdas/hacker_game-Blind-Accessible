@@ -285,7 +285,11 @@ class HelpCommand : Command {
 	}
 
 	bool execute(string mode, bool connected, Server@ current) {
-		audio.speak(tr("Commands: S — scan, C — connect, E — ports/info, F — bypass protection, B — guess access, K — crack, D — download, X — disconnect, H — help, context menu — App.", "Команды: S — сканировать, C — подключиться, E — порты/инфо, F — обход защиты, B — подбор доступа, K — взлом, D — скачать, X — отключиться, H — помощь, контекстное меню — App."), true);
+		if (is_touch_ui()) {
+			audio.speak(tr("Commands: scan, connect, enum, firewall, bruteforce, crack, download, spam, disconnect, help. Double tap — run, two-finger right — results, two-finger left — back.", "Команды: scan, connect, enum, firewall, bruteforce, crack, download, spam, disconnect, help. Двойной тап — выполнить, два пальца вправо — результаты, два пальца влево — назад."), true);
+		} else {
+			audio.speak(tr("Commands: S — scan, C — connect, E — ports/info, F — bypass protection, B — guess access, K — crack, D — download, X — disconnect, H — help, context menu — App.", "Команды: S — сканировать, C — подключиться, E — порты/инфо, F — обход защиты, B — подбор доступа, K — взлом, D — скачать, X — отключиться, H — помощь, контекстное меню — App."), true);
+		}
 		if (connected && @current != null) {
 			if (current.target_type == "person") audio.speak(tr("Target: human. Tactics: F(trust) → B(social engineering) → K(pressure) → D(compromise).", "Цель: человек. Тактика: F(доверие) → B(соц.инженерия) → K(давление) → D(компромат)."), false);
 			else if (current.target_type == "system") audio.speak(tr("Target: system. Tactics: F(monitoring) → B(exploit) → K(encryption) → D(logs).", "Цель: система. Тактика: F(мониторинг) → B(эксплойт) → K(шифрование) → D(логи)."), false);
