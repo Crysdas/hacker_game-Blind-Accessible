@@ -58,11 +58,16 @@ enum GameMode {
 // PACK_CONST
 
 const string SETTINGS_FILE = "hacksim_settings.txt";
+const string GAME_VERSION = "1.0";
+const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
+const string UPDATE_ZIP_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.zip";
+const string UPDATE_APK_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.apk";
 int music_level = 2; // 0 выкл, 1 тихая, 2 громкая
 bool sfx_enabled = true;
 int voice_mode = 0; // 0 скринридер (NVDA), 1 системный голос (SAPI)
 int speech_language = 0; // 0 русский, 1 английский
 int speech_volume = 0; // 0 норма, 1 громко, 2 тише
+bool update_check = true; // автопроверка обновлений при старте
 
 class HackerGame {
 	private AudioManager@ audio;
@@ -244,7 +249,125 @@ g_touch.monitor();
 		log.log("show_title()");
 		audio.speak("Hacker Simulator: Zero Day", true);
 		wait(500);
+		maybe_check_updates();
 		show_main_menu();
+	}
+
+	private void maybe_check_updates() {
+		if (!update_check) return;
+		audio.play_sound("update_ping");
+		audio.speak(tr("Checking for updates...", "Проверка обновлений..."), true);
+		http h;
+		if (!h.get(UPDATE_VERSION_URL)) {
+			audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
+			return;
+		}
+		timer t;
+		while (h.complete == false) {
+			wait(5);
+			g_touch.monitor();
+			if (t.elapsed > 8000) {
+				h.reset();
+				audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
+				return;
+			}
+		}
+		if (h.status_code != 200) {
+			audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
+			return;
+		}
+		string remote = h.response_body.replace("\n", "").replace("\r", "").replace(" ", "");
+		if (remote == "" || remote == GAME_VERSION) return;
+		audio.play_sound("update_ping");
+		show_update_menu(remote);
+	}
+
+	private void show_update_menu(string newver) {
+		string[] items = {
+			tr("Version ", "Версия ") + newver + tr(" is available. Download the update", " доступна. Скачать обновление"),
+			tr("Skip this version", "Пропустить версию"),
+			tr("Turn off update checks", "Отключить проверки обновлений"),
+			tr("Later", "Позже")
+		};
+		game_menu.set_items(items);
+		game_menu.open();
+
+		while (game_menu.is_active()) {
+			wait(5);
+			g_touch.monitor();
+			if (key_pressed(KEY_UP)) game_menu.move_up();
+			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_RETURN)) {
+				int sel = game_menu.get_selected();
+				game_menu.close();
+				if (sel == 0) download_update();
+				else if (sel == 2) {
+					update_check = false;
+					save_settings();
+					audio.speak(tr("Update checks turned off.", "Автопроверка обновлений выключена."), true);
+				}
+				return;
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				game_menu.close();
+				return;
+			}
+			if (key_pressed(KEY_LEFT)) audio.history_back();
+			if (key_pressed(KEY_RIGHT)) audio.history_forward();
+		}
+	}
+
+	private void download_update() {
+		string save_name = is_touch_ui() ? "hacksim_update.apk" : "hacksim_update.zip";
+		string url = is_touch_ui() ? UPDATE_APK_URL : UPDATE_ZIP_URL;
+		audio.speak(tr("Downloading the update...", "Скачиваю обновление..."), true);
+		http h;
+		if (!h.get(url)) {
+			audio.speak(tr("Download failed.", "Скачивание не удалось."), false);
+			return;
+		}
+		file f;
+		bool opened = false;
+		int last_step = -1;
+		timer t;
+		while (h.complete == false) {
+			wait(5);
+			g_touch.monitor();
+			if (h.status_code == 200 && !opened) {
+				f.open(save_name, "wb");
+				opened = true;
+			}
+			if (opened) {
+				string chunk = h.response_body;
+				if (chunk != "") f.write(chunk);
+			}
+			int step = int(h.progress * 10);
+			if (step > 0 && step != last_step) {
+				last_step = step;
+				audio.play_sound("update_tick");
+				audio.speak("" + (step * 10) + "% " + tr("downloaded", "скачено"), true);
+			}
+			if (t.elapsed > 90000) {
+				h.reset();
+				if (opened) f.close();
+				file_delete(save_name);
+				audio.speak(tr("Download failed.", "Скачивание не удалось."), false);
+				return;
+			}
+		}
+		if (h.status_code == 200 && opened) {
+			string chunk = h.response_body;
+			if (chunk != "") f.write(chunk);
+			f.close();
+			audio.play_sound("update_done");
+			audio.speak(tr("Update downloaded: ", "Обновление скачано: ") + save_name + tr(". Run it to install, then restart the game.", ". Запустите его и перезапустите игру."), true);
+		} else {
+			if (opened) f.close();
+			file_delete(save_name);
+			audio.speak(tr("Download failed.", "Скачивание не удалось."), true);
+		}
 	}
 
 	private void show_main_menu() {
@@ -464,6 +587,7 @@ g_touch.monitor();
 			f.write("lang=" + speech_language + "\n");
 			f.write("spkv=" + speech_volume + "\n");
 			f.write("uilang=" + ui_lang + "\n");
+			f.write("upd=" + (update_check ? "1" : "0") + "\n");
 			f.close();
 			log.log("Settings saved");
 		} else {
@@ -486,6 +610,7 @@ g_touch.monitor();
 					else if (key == "lang") speech_language = parse_int(val);
 					else if (key == "spkv") speech_volume = parse_int(val);
 					else if (key == "uilang") ui_lang = parse_int(val);
+					else if (key == "upd") update_check = parse_int(val) != 0;
 				}
 				line = f.read_line();
 			}
@@ -545,6 +670,7 @@ g_touch.monitor();
 			tr("Speech language: ", "Язык речи: ") + lang_label(),
 			tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
 			tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
+			tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
 			tr("Back to menu", "Вернуться в меню")
 		};
 		game_menu.set_items(items);
@@ -607,12 +733,18 @@ g_touch.monitor();
 						tr("Speech language: ", "Язык речи: ") + lang_label(),
 						tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
 						tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
+						tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
 						tr("Back to menu", "Вернуться в меню")
 					};
 					game_menu.set_items(back);
 					audio.speak(tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(), true);
 					audio.speak(tr("This game is now in English.", "Игра теперь на русском языке."), true);
 				} else if (sel == 6) {
+					update_check = !update_check;
+					save_settings();
+					game_menu.set_item(6, tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")));
+					audio.speak(tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")), true);
+				} else if (sel == 7) {
 					game_menu.close();
 					show_main_menu();
 					return;
