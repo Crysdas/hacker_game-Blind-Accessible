@@ -14,9 +14,9 @@ class HackingGame {
 
 	// Classic rhythm variant
 	private bool bruteforce_rhythm(int difficulty) {
-		audio.speak(tr("Brute-force. Press Enter rhythmically.", "Подбор доступа. Нажимайте Enter ритмично."), true);
+		audio.speak(trk("Brute-force. Press Enter rhythmically.", "Подбор доступа. Нажимайте Enter ритмично.", "Brute-force. Double tap rhythmically.", "Подбор доступа. Двойной тап ритмично."), true);
 		wait(300);
-		audio.speak(tr("Enter to start.", "Enter — начать."), false);
+		audio.speak(trk("Enter to start.", "Enter — начать.", "Double tap to start.", "Двойной тап — начать."), false);
 
 		while (true) {
 			wait(5);
@@ -87,15 +87,20 @@ g_touch.monitor();
 				audio.speak(tr("Time is up!", "Время вышло!"), true);
 				return false;
 			}
-			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_ESCAPE) && !is_touch_ui()) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
 			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 
 			int p = 0;
-			if (key_pressed(KEY_1)) p = 1;
-			else if (key_pressed(KEY_2)) p = 2;
-			else if (key_pressed(KEY_3)) p = 3;
-			else if (key_pressed(KEY_4)) p = 4;
+			if (is_touch_ui()) {
+				p = touch_digit_input(4);
+				if (p < 0) return false;
+			} else {
+				if (key_pressed(KEY_1)) p = 1;
+				else if (key_pressed(KEY_2)) p = 2;
+				else if (key_pressed(KEY_3)) p = 3;
+				else if (key_pressed(KEY_4)) p = 4;
+			}
 
 			if (p > 0) {
 				if (p == seq[pos]) {
@@ -150,6 +155,18 @@ g_touch.monitor();
 		audio.beep(float(target_freq), 500.0);
 		wait(600);
 		audio.speak(tr("Reference. Enter — options, Space — reference again, 1-4 — answer.", "Эталон. Enter — варианты, Пробел — эталон ещё, 1-4 — ответ."), true);
+		if (is_touch_ui()) {
+			audio.beep(float(target_freq), 500.0);
+			wait(600);
+			for (int i = 0; i < 4; i++) { audio.beep(options[i], 400); wait(200); audio.speak("" + (i+1), true); wait(300); }
+			audio.speak(tr("Choose the answer.", "Выберите ответ."), true);
+			int ans = touch_digit_input(4);
+			if (ans < 0) return false;
+			if (ans == correct_index + 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; }
+			audio.error_beep();
+			audio.speak(tr("Wrong! ", "Неверно! ") + (correct_index + 1), true);
+			return false;
+		}
 		while (true) {
 			wait(5);
 g_touch.monitor();
@@ -185,6 +202,15 @@ g_touch.monitor();
 		for (int i = 0; i < 4; i++) { audio.beep(options[i], 300); wait(250); }
 		wait(200);
 		audio.speak(tr("Enter — repeat, 1-4 — the odd one?", "Enter — повторить, 1-4 — лишний?"), false);
+		if (is_touch_ui()) {
+			audio.speak(tr("Choose the odd one.", "Выберите лишний."), true);
+			int ans = touch_digit_input(4);
+			if (ans < 0) return false;
+			if (ans == odd_index + 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; }
+			audio.error_beep();
+			audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index + 1), true);
+			return false;
+		}
 		while (true) {
 			wait(5);
 g_touch.monitor();
@@ -231,13 +257,18 @@ g_touch.monitor();
 		while (answer.length() < 3) {
 			wait(5);
 g_touch.monitor();
-			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_ESCAPE) && !is_touch_ui()) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
 			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 			int p = 0;
-			if (key_pressed(KEY_1)) p = 1;
-			else if (key_pressed(KEY_2)) p = 2;
-			else if (key_pressed(KEY_3)) p = 3;
+			if (is_touch_ui()) {
+				p = touch_digit_input(3);
+				if (p < 0) return false;
+			} else {
+				if (key_pressed(KEY_1)) p = 1;
+				else if (key_pressed(KEY_2)) p = 2;
+				else if (key_pressed(KEY_3)) p = 3;
+			}
 			if (p > 0) {
 				answer.insert_last(p);
 				audio.speak("" + p, true);
@@ -295,19 +326,24 @@ g_touch.monitor();
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 
 			int pressed = 0;
-			if (key_pressed(KEY_1)) pressed = 1;
-			else if (key_pressed(KEY_2)) pressed = 2;
-			else if (key_pressed(KEY_3)) pressed = 3;
-			else if (key_pressed(KEY_4)) pressed = 4;
+			if (is_touch_ui()) {
+				pressed = touch_digit_input(4);
+				if (pressed < 0) return false;
+			} else {
+				if (key_pressed(KEY_1)) pressed = 1;
+				else if (key_pressed(KEY_2)) pressed = 2;
+				else if (key_pressed(KEY_3)) pressed = 3;
+				else if (key_pressed(KEY_4)) pressed = 4;
+			}
 
 			if (pressed > 0) {
 				if (pressed == seq[pos]) {
 					audio.success_beep();
-					audio.speak("" + pressed + " — верно", true);
+					audio.speak("" + pressed + tr(" — correct", " — верно"), true);
 					pos++;
 				} else {
 					audio.error_beep();
-					audio.speak("" + pressed + " — неверно!", true);
+					audio.speak("" + pressed + tr(" — wrong!", " — неверно!"), true);
 					wait(200);
 					audio.speak(tr("Sequence reset. Start over.", "Последовательность сброшена. Начинайте заново."), true);
 					pos = 0;

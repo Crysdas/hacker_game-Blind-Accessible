@@ -27,6 +27,7 @@ string hint_back() {
 
 // Touch screen support (Android/iOS): swipes and taps become key events.
 #include "touch.nvgt"
+#include "src/touch_digit.nvgt"
 touch_gesture_manager g_touch;
 
 #include "speech.nvgt"
@@ -201,15 +202,14 @@ private void setup_touch() {
 		//  double tap ............. select (Enter)
 		//  2 fingers left ......... back (once)
 		//  2 fingers right ........ next tab/focus (Tab: commands <-> results)
-		g_touch.add_touch_interface(touch_keyboard_interface(g_touch, {
-			{"swipe_left1f", KEY_UP},
-			{"swipe_right1f", KEY_DOWN},
-			{"swipe_up1f", KEY_ESCAPE},
-			{"swipe_left2f", KEY_ESCAPE},
-			{"swipe_right2f", KEY_TAB},
-			{"double_tap1f", KEY_RETURN},
-			{"double_tap2f", KEY_RETURN}
-		}));
+		g_touch_keymap.set("swipe_left1f", KEY_UP);
+		g_touch_keymap.set("swipe_right1f", KEY_DOWN);
+		g_touch_keymap.set("swipe_up1f", KEY_ESCAPE);
+		g_touch_keymap.set("swipe_left2f", KEY_ESCAPE);
+		g_touch_keymap.set("swipe_right2f", KEY_TAB);
+		g_touch_keymap.set("double_tap1f", KEY_RETURN);
+		g_touch_keymap.set("double_tap2f", KEY_RETURN);
+		touch_rebuild(false);
 	}
 
 	private void show_splash() {

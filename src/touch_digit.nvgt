@@ -1,0 +1,91 @@
+/* touch_digit.nvgt - on-screen digit wheel for Android/iOS minigames.
+ * swipe up/down ...... cycle the digit (1..max)
+ * double tap ......... enter the digit
+ * long press ......... cancel / exit
+ * This replaces physical number keys (1-4) that phones do not have.
+ */
+
+class DigitPad : touch_interface {
+	DigitPad(touch_gesture_manager@ m) {
+		super(m);
+	}
+
+	void on_swipe_up(touch_screen_finger@ f) {
+		if (g_touch_digit) touch_digit_change(1);
+	}
+
+	void on_swipe_down(touch_screen_finger@ f) {
+		if (g_touch_digit) touch_digit_change(-1);
+	}
+
+	void on_double_tap(touch_screen_finger@ f, uint fc) {
+		if (g_touch_digit) g_touch_digit_confirm = true;
+	}
+
+	void on_long_press(touch_screen_finger@ f, uint fc) {
+		if (g_touch_digit) g_touch_digit_cancel = true;
+	}
+};
+
+touch_interface@ g_digit_pad = null;
+bool g_touch_digit = false;
+int g_touch_digit_val = 1;
+int g_touch_digit_max = 4;
+int g_touch_digit_last_spoken = 0;
+bool g_touch_digit_confirm = false;
+bool g_touch_digit_cancel = false;
+
+dictionary g_touch_keymap;
+
+// Rebuild the touch interfaces in the right order (newest wins).
+// digits=false: only the gesture->key interface (menus / general).
+// digits=true : same + the digit pad on top.
+void touch_rebuild(bool digits) {
+	g_touch.clear_touch_interfaces();
+	g_touch.add_touch_interface(touch_keyboard_interface(g_touch, @g_touch_keymap));
+	if (digits) {
+		if (@g_digit_pad == null) @g_digit_pad = DigitPad(g_touch);
+		g_touch.add_touch_interface(g_digit_pad);
+	}
+}
+
+void touch_digit_change(int step) {
+	g_touch_digit_val += step;
+	if (g_touch_digit_val < 1) g_touch_digit_val = g_touch_digit_max;
+	if (g_touch_digit_val > g_touch_digit_max) g_touch_digit_val = 1;
+}
+
+void touch_enter_digit_mode(int max) {
+	g_touch_digit_max = max;
+	g_touch_digit_val = 1;
+	g_touch_digit_last_spoken = 0;
+	g_touch_digit_confirm = false;
+	g_touch_digit_cancel = false;
+	g_touch_digit = true;
+	touch_rebuild(true);
+}
+
+void touch_exit_digit_mode() {
+	g_touch_digit = false;
+	touch_rebuild(false);
+}
+
+// Returns the chosen digit (1..max) or -1 if the player cancelled.
+int touch_digit_input(int max) {
+	touch_enter_digit_mode(max);
+	speak(tr("Swipe up/down to choose the digit, double tap to enter, long press to cancel.", "Свайп вверх/вниз — выбрать цифру, двойной тап — ввод, долгий тап — выход."), true);
+	while (!g_touch_digit_confirm && !g_touch_digit_cancel) {
+		wait(5);
+		g_touch.monitor();
+		if (g_touch_digit_val != g_touch_digit_last_spoken) {
+			g_touch_digit_last_spoken = g_touch_digit_val;
+			speak("" + g_touch_digit_val, true);
+		}
+	}
+	touch_exit_digit_mode();
+	if (g_touch_digit_cancel) {
+		speak(tr("Cancelled.", "Отменено."), true);
+		return -1;
+	}
+	return g_touch_digit_val;
+}
