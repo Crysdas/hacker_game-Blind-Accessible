@@ -9,7 +9,7 @@ param(
     [string]$Root = "C:\StreamPlayer\hacker_game",
     [string]$Nvgt = "C:\NVGT\nvgt.exe",
     [string]$Key  = "0day-nvgt-2026-key",
-    [string]$OutName = "HackerSimulatorZeroDay"
+    [string]$OutName = "hacksim"
 )
 
 $ErrorActionPreference = "Stop"
