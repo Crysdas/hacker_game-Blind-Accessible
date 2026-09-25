@@ -24,7 +24,7 @@ class GameMenu {
 		active = true;
 		cursor = 0;
 		audio.menu_click();
-		audio.speak("Меню: " + items[0] + ". Стрелки — навигация.", true);
+		audio.speak("Меню из " + items.length() + " пунктов. Пункт 1: " + items[0] + ". Стрелки вверх и вниз — навигация, Enter — выбор, Escape — назад.", true);
 	}
 
 	void close() {
@@ -40,10 +40,11 @@ class GameMenu {
 		if (cursor > 0) {
 			cursor--;
 			audio.menu_click();
-			audio.speak(items[cursor], true);
+			audio.speak("Пункт " + (cursor + 1) + " из " + items.length() + ": " + items[cursor], true);
 			return true;
 		}
 		audio.terminal_beep();
+		audio.speak("Это первый пункт меню.", true);
 		return false;
 	}
 
@@ -51,10 +52,11 @@ class GameMenu {
 		if (cursor < int(items.length()) - 1) {
 			cursor++;
 			audio.menu_click();
-			audio.speak(items[cursor], true);
+			audio.speak("Пункт " + (cursor + 1) + " из " + items.length() + ": " + items[cursor], true);
 			return true;
 		}
 		audio.terminal_beep();
+		audio.speak("Это последний пункт меню.", true);
 		return false;
 	}
 
@@ -99,9 +101,10 @@ class ContextMenu {
 		if (cursor > 0) {
 			cursor--;
 			audio.menu_click();
-			audio.speak(items[cursor], true);
+			audio.speak("Пункт " + (cursor + 1) + " из " + items.length() + ": " + items[cursor], true);
 			return true;
 		}
+		audio.terminal_beep();
 		return false;
 	}
 
@@ -109,9 +112,10 @@ class ContextMenu {
 		if (cursor < int(items.length()) - 1) {
 			cursor++;
 			audio.menu_click();
-			audio.speak(items[cursor], true);
+			audio.speak("Пункт " + (cursor + 1) + " из " + items.length() + ": " + items[cursor], true);
 			return true;
 		}
+		audio.terminal_beep();
 		return false;
 	}
 

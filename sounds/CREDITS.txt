@@ -1,0 +1,18 @@
+Sound credits
+=============
+
+Sound effects (terminal clicks, blips, menus, alarms, lasers, explosions,
+access granted/denied, warnings):
+  "The Essential Retro Video Game Sound Effects Collection [512 sounds]"
+  by Juhani Junkala (SubspaceAudio)
+  Source: OpenGameArt - https://opengameart.org/content/512-sound-effects-8-bit-style
+  License: CC0 1.0 Universal - https://creativecommons.org/publicdomain/zero/1.0/
+
+Synthesized tone files (tones/tone_*.wav, tones/tone_short_*.wav):
+  Generated sine waves, public domain.
+
+Background music:
+  "Битва с Тенью" (battle_with_shadow.mp3) - provided by the project author.
+
+Ambient hum (ambient/computer_hum.ogg):
+  Kenney assets (CC0) - https://kenney.nl

@@ -43,6 +43,7 @@ class HackerGame {
 	private int current_server;
 	private bool connected;
 	private string cmd_buffer;
+	private sound@ music_player;
 	private pack_file@ assets;
 
 	private Command@[] commands;
@@ -81,6 +82,15 @@ class HackerGame {
 			log.log("Audio loaded OK");
 		} catch {
 			log.log("Audio load FAILED: " + get_exception_info());
+		}
+		sound@ bgm = sound();
+		if (bgm.load("sounds/music/battle_with_shadow.mp3")) {
+			bgm.volume = -12.0;
+			bgm.play_looped();
+			@music_player = @bgm;
+			log.log("Music loaded and looping");
+		} else {
+			log.log("Music load FAILED (battle_with_shadow.mp3)");
 		}
 
 		@terminal = Terminal(@audio);
@@ -144,6 +154,7 @@ class HackerGame {
 			log.log("CRASH: " + get_exception_info());
 		}
 		log.log("Game loop ended");
+		if (@music_player != null) music_player.stop();
 		destroy_window();
 		log.stop();
 	}
