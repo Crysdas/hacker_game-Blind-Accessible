@@ -58,10 +58,24 @@ Copy-Item $dat (Join-Path $dist "game.dat")
 Copy-Item (Join-Path $Root "README.md") (Join-Path $dist "README.md") -ErrorAction SilentlyContinue
 
 # Replace loose-sound bundling with embedded pack
+# NOTE: must use strict UTF-8 read/write here; Get-Content under PowerShell 5.1
+# decodes UTF-8 as ANSI and would mangle all Cyrillic literals in the source.
 $distMain = Join-Path $dist "main.nvgt"
-$content = Get-Content $distMain -Raw
-$content = $content -replace '#pragma asset "sounds"', '#pragma embed "game.dat"'
-[System.IO.File]::WriteAllText($distMain, $content, (New-Object System.Text.UTF8Encoding($true)))
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+$content = [System.IO.File]::ReadAllText($distMain, $utf8)
+$content = $content.Replace('#pragma asset "sounds"', '#pragma embed "game.dat"')
+[System.IO.File]::WriteAllText($distMain, $content, $utf8)
+# Verify: the UTF-8 byte sequence of "Сюжет" must survive the rewrite.
+# (No Cyrillic literals in this .ps1 - PowerShell 5.1 would mis-decode them.)
+$want = [byte[]](0xD0,0xA1,0xD1,0x8E,0xD0,0xB6,0xD0,0xB5,0xD1,0x82)
+$raw = [System.IO.File]::ReadAllBytes($distMain)
+$found = $false
+for ($i = 0; $i -le $raw.Length - $want.Length; $i++) {
+    $ok = $true
+    for ($j = 0; $j -lt $want.Length; $j++) { if ($raw[$i+$j] -ne $want[$j]) { $ok = $false; break } }
+    if ($ok) { $found = $true; break }
+}
+if (-not $found) { throw "ABORT: Cyrillic payload lost in dist/main.nvgt" }
 
 # --- 3. Compile and extract product (exe + engine libraries) ---
 Push-Location $dist
