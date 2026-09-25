@@ -102,7 +102,7 @@ void init_settings_path() {
 		g_settings_path = SETTINGS_FILE;
 	}
 }
-const string GAME_VERSION = "1.2";
+const string GAME_VERSION = "1.3";
 const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
 const string UPDATE_ZIP_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.zip";
 const string UPDATE_APK_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.apk";
@@ -303,8 +303,8 @@ g_touch.monitor();
 		show_main_menu();
 	}
 
-	private void maybe_check_updates() {
-		if (!update_check) return;
+	private void maybe_check_updates(bool manual = false) {
+		if (!update_check && !manual) return;
 		audio.play_sound("update_ping");
 		audio.speak(tr("Checking for updates...", "Проверка обновлений..."), true);
 		http h;
@@ -759,6 +759,7 @@ g_touch.monitor();
 			tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
 			tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
 			tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
+			tr("Check for updates", "Проверить обновления"),
 			tr("About", "О игре"),
 			tr("Back to menu", "Вернуться в меню")
 		};
@@ -823,6 +824,7 @@ g_touch.monitor();
 						tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
 						tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
 						tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
+						tr("Check for updates", "Проверить обновления"),
 						tr("About", "О игре"),
 						tr("Back to menu", "Вернуться в меню")
 					};
@@ -835,8 +837,13 @@ g_touch.monitor();
 					game_menu.set_item(6, tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")));
 					audio.speak(tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")), true);
 				} else if (sel == 7) {
-					audio.speak(tr("Hacker Simulator: Zero Day, version ", "Хакер-симулятор: Zero Day, версия ") + GAME_VERSION + tr(". Updates: ", ". Проверка обновлений: ") + (update_check ? tr("on.", "вкл.") : tr("off.", "выкл.")), true);
+					game_menu.close();
+					maybe_check_updates(true);
+					show_settings_menu();
+					return;
 				} else if (sel == 8) {
+					audio.speak(tr("Hacker Simulator: Zero Day, version ", "Хакер-симулятор: Zero Day, версия ") + GAME_VERSION + tr(". Updates: ", ". Проверка обновлений: ") + (update_check ? tr("on.", "вкл.") : tr("off.", "выкл.")), true);
+				} else if (sel == 9) {
 					game_menu.close();
 					show_main_menu();
 					return;
