@@ -1,14 +1,84 @@
-#include "audio.nvgt"
-#include "terminal.nvgt"
-#include "network.nvgt"
-#include "hacking.nvgt"
-#include "menu.nvgt"
-#include "story.nvgt"
-#include "sandbox.nvgt"
-#include "data.nvgt"
-#include "log.nvgt"
-#include "commands.nvgt"
+// Locale selector must be visible to all includes (menu.nvgt, commands.nvgt...)
+int ui_lang = 0; // 0 русский, 1 английский
+
+string tr(string en, string ru) {
+	if (ui_lang == 1) return en;
+	return ru;
+}
+
+// Returns a comparable version string (digits, letters, dots) - strips BOM/whitespace.
+string clean_version(string v) {
+	string r = "";
+	for (int i = 0; i < int(v.length()); i++) {
+		string c = v.substr(i, 1);
+		if ((c >= "0" && c <= "9") || (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c == "." || c == "-") r += c;
+	}
+	return r;
+}
+
+// Compares dotted version strings numerically: <0 a<b, 0 equal, >0 a>b.
+int compare_version(string a, string b) {
+	string[]@ as = a.split(".");
+	string[]@ bs = b.split(".");
+	int n = int(as.length() > bs.length() ? as.length() : bs.length());
+	for (int i = 0; i < n; i++) {
+		int ai = i < int(as.length()) ? parse_int(as[i]) : 0;
+		int bi = i < int(bs.length()) ? parse_int(bs[i]) : 0;
+		if (ai < bi) return -1;
+		if (ai > bi) return 1;
+	}
+	return 0;
+}
+bool is_touch_ui() {
+	return system_is_mobile;
+}
+string trk(string ken, string kru, string ten, string tru) {
+	if (is_touch_ui()) return ui_lang == 1 ? ten : tru;
+	return ui_lang == 1 ? ken : kru;
+}
+// short action hints that adapt to the platform
+string hint_move() {
+	return trk("Arrows — move", "Стрелки — листать", "Swipe left/right — move", "Свайп влево/вправо — листать");
+}
+string hint_select() {
+	return trk("Enter — select", "Enter — выбор", "double tap — select", "двойной тап — выбрать");
+}
+string hint_back() {
+	return trk("Escape — back", "Escape — назад", "swipe up — back", "свайп вверх — назад");
+}
+
+// Touch screen support (Android/iOS): swipes and taps become key events.
+#include "touch.nvgt"
+#include "settings.nvgt"
+#include "src/touch_digit.nvgt"
+touch_gesture_manager g_touch;
+settings S;
+
+// Hacker rank titles based on targets hacked this session.
+int g_hacked_count = 0;
+
+string rank_title(int n) {
+	if (n >= 30) return tr("Legendary Hacker", "Легендарный хакер");
+	if (n >= 18) return tr("Cyber Phantom", "Кибер-призрак");
+	if (n >= 10) return tr("Ghost", "Призрак");
+	if (n >= 5) return tr("Net Runner", "Сетевой бегун");
+	if (n >= 2) return tr("Operator", "Оператор");
+	return tr("Script Kiddie", "Скрипт-кидди");
+}
+
+#include "speech.nvgt"
+#include "src/audio.nvgt"
+#include "src/terminal.nvgt"
+#include "src/network.nvgt"
+#include "src/hacking.nvgt"
+#include "src/menu.nvgt"
+#include "src/story.nvgt"
+#include "src/sandbox.nvgt"
+#include "src/data.nvgt"
+#include "src/log.nvgt"
+#include "src/commands.nvgt"
 #pragma asset "sounds"
+#pragma compiled_basename "hacksim"
 
 enum FocusArea {
 	FOCUS_TERMINAL,
@@ -21,6 +91,41 @@ enum GameMode {
 	MODE_SANDBOX,
 	MODE_LAB
 };
+
+// PACK_CONST
+
+const string SETTINGS_FILE = "hacksim_settings.txt";
+
+// Persistent settings location: PC uses a local file next to the game,
+// phones use the app's writable data directory (chosen once at startup).
+string settings_path() {
+	return g_settings_path;
+}
+
+void init_settings_path() {
+	if (!is_touch_ui()) {
+		g_settings_path = SETTINGS_FILE;
+		return;
+	}
+	S.filename = "hacksim_settings";
+	if (S.setup("", "hacksim", false, "ini")) {
+		g_settings_path = "(settings.nvgt)";
+	} else {
+		g_settings_path = SETTINGS_FILE;
+	}
+}
+const string GAME_VERSION = "1.7";
+const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
+const string UPDATE_ZIP_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.zip";
+const string UPDATE_APK_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.apk";
+int music_level = 2; // 0 выкл, 1 тихая, 2 громкая
+bool sfx_enabled = true;
+int voice_mode = 0; // 0 скринридер (NVDA), 1 системный голос (SAPI)
+int speech_language = 0; // 0 русский, 1 английский
+int speech_volume = 0; // 0 норма, 1 громко, 2 тише
+bool update_check = true; // автопроверка обновлений при старте
+bool upd_flag_was_set = false; // был ли "upd" в файле настроек
+string g_settings_path = ""; // вычисляется при старте (рабочий путь настроек)
 
 class HackerGame {
 	private AudioManager@ audio;
@@ -40,6 +145,8 @@ class HackerGame {
 	private int current_server;
 	private bool connected;
 	private string cmd_buffer;
+	private sound@ music_player;
+	// PACK_FIELD
 
 	private Command@[] commands;
 	private ScanCommand@ cmd_scan;
@@ -58,12 +165,21 @@ class HackerGame {
 		log.start();
 		log.log("HackerGame constructor");
 
+		// PACK_BOOTSTRAP
+
 		@audio = AudioManager();
 		try {
 			audio.load_sounds();
 			log.log("Audio loaded OK");
 		} catch {
 			log.log("Audio load FAILED: " + get_exception_info());
+		}
+		sound@ bgm = sound();
+		if (bgm.load("sounds/music/battle_with_shadow.ogg")) {
+			@music_player = @bgm;
+			log.log("Music loaded");
+		} else {
+			log.log("Music load FAILED (battle_with_shadow.ogg)");
 		}
 
 		@terminal = Terminal(@audio);
@@ -74,6 +190,15 @@ class HackerGame {
 		@story = StoryManager();
 		@sandbox = Sandbox(@audio);
 		@tools = Tools();
+		setup_touch();
+		init_settings_path();
+		load_settings();
+		print("settings_path=" + settings_path());
+		// On phones the NVGT network backend is fragile, so auto-update checks
+		// stay off by default (can be enabled in Settings manually).
+		if (is_touch_ui() && !upd_flag_was_set) update_check = false;
+		audio.set_sfx_enabled(sfx_enabled);
+		init_tts_voice();
 		log.log("All subsystems initialized");
 
 		@cmd_scan = ScanCommand();
@@ -120,46 +245,231 @@ class HackerGame {
 
 			while (running) {
 				wait(5);
+g_touch.monitor();
 				handle_input();
 			}
 		} catch {
 			log.log("CRASH: " + get_exception_info());
 		}
 		log.log("Game loop ended");
+		if (@music_player != null) music_player.stop();
 		destroy_window();
 		log.stop();
+	}
+
+private void setup_touch() {
+		// Android/iOS gestures:
+		//  1 finger left/right ... menu navigation
+		//  1 finger up ............ back
+		//  double tap ............. select (Enter)
+		//  2 fingers left ......... back (once)
+		//  2 fingers right ........ next tab/focus (Tab: commands <-> results)
+		g_touch_keymap.set("swipe_left1f", KEY_UP);
+		g_touch_keymap.set("swipe_right1f", KEY_DOWN);
+		g_touch_keymap.set("swipe_up1f", KEY_ESCAPE);
+		g_touch_keymap.set("swipe_left2f", KEY_ESCAPE);
+		g_touch_keymap.set("swipe_right2f", KEY_TAB);
+		g_touch_keymap.set("double_tap1f", KEY_RETURN);
+		g_touch_keymap.set("double_tap2f", KEY_RETURN);
+		touch_rebuild(false);
 	}
 
 	private void show_splash() {
 		log.log("show_splash()");
 		show_window("Hacker Simulator: Zero Day");
 		set_application_name("Hacker Simulator: Zero Day");
-		audio.power_up();
-		wait(300);
-		audio.speak("Dich Maker Team", true);
-		wait(500);
+		if (system_is_mobile && screen_reader_has_speech()) {
+			audio.speak(tr("A screen reader is active. Please turn it off for the best experience, the game uses its own touch gestures.", "Включён экранный диктор. Пожалуйста, выключите его: игра использует собственные жесты."), true);
+			wait_skip(3000);
+		}
+		audio.play_sound("logo_riser");
+		if (wait_skip(2150)) return;
+		audio.play_sound("logo_hit");
+		if (wait_skip(160)) return;
+		audio.play_sound("logo_chime");
+		if (wait_skip(700)) return;
+		audio.play_sound("logo_sparkle");
+		if (wait_skip(1900)) return;
+		audio.speak(tr("Dich Maker Team presents", "Dich Maker Team представляет"), true);
+		if (wait_skip(800)) return;
 		audio.success_beep();
-		wait(1500);
+		wait_skip(1400);
+	}
+
+	// Waits ms; returns true if the player pressed Enter/Space to skip.
+	private bool wait_skip(int ms) {
+		timer t;
+		while (t.elapsed < uint(ms)) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_RETURN) || key_pressed(KEY_SPACE)) return true;
+		}
+		return false;
 	}
 
 	private void show_title() {
 		log.log("show_title()");
 		audio.speak("Hacker Simulator: Zero Day", true);
 		wait(500);
+		maybe_check_updates();
 		show_main_menu();
+	}
+
+	private void maybe_check_updates(bool manual = false) {
+		if (!update_check && !manual) return;
+		audio.play_sound("update_ping");
+		audio.speak(tr("Checking for updates...", "Проверка обновлений..."), true);
+		http h;
+		if (!h.get(UPDATE_VERSION_URL)) {
+			audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
+			return;
+		}
+		timer t;
+		while (h.complete == false) {
+			wait(5);
+			g_touch.monitor();
+			if (t.elapsed > 8000) {
+				h.reset();
+				audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
+				return;
+			}
+		}
+		if (h.status_code != 200) {
+			audio.speak(tr("Update check failed.", "Не удалось проверить обновления."), false);
+			return;
+		}
+		string remote = clean_version(h.response_body);
+		string current = clean_version(GAME_VERSION);
+		if (remote == "" || compare_version(remote, current) <= 0) return;
+		audio.play_sound("update_ping");
+		show_update_menu(current, remote);
+	}
+
+	private void show_update_menu(string current, string newver) {
+		string[] items = {
+			tr("Version ", "Версия ") + current + " -> " + newver + tr(" is available. Download the update", " доступна. Скачать обновление"),
+			tr("Skip this version", "Пропустить версию"),
+			tr("Turn off update checks", "Отключить проверки обновлений"),
+			tr("Later", "Позже")
+		};
+		game_menu.set_items(items);
+		game_menu.open();
+
+		while (game_menu.is_active()) {
+			wait(5);
+			g_touch.monitor();
+			if (key_pressed(KEY_UP)) game_menu.move_up();
+			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_RETURN)) {
+				int sel = game_menu.get_selected();
+				game_menu.close();
+				if (sel == 0) download_update();
+				else if (sel == 2) {
+					update_check = false;
+					save_settings();
+					audio.speak(tr("Update checks turned off.", "Автопроверка обновлений выключена."), true);
+				}
+				return;
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				game_menu.close();
+				return;
+			}
+			if (key_pressed(KEY_LEFT)) audio.history_back();
+			if (key_pressed(KEY_RIGHT)) audio.history_forward();
+		}
+	}
+
+	private void download_update() {
+		string save_name = is_touch_ui() ? "hacksim_update.apk" : "hacksim_update.zip";
+		string url = is_touch_ui() ? UPDATE_APK_URL : UPDATE_ZIP_URL;
+		audio.speak(tr("Downloading the update...", "Скачиваю обновление..."), true);
+		http h;
+		if (!h.get(url)) {
+			audio.speak(tr("Download failed.", "Скачивание не удалось."), false);
+			return;
+		}
+		file f;
+		bool opened = false;
+		int last_step = -1;
+		timer t;
+		while (h.complete == false) {
+			wait(5);
+			g_touch.monitor();
+			if (h.status_code == 200 && !opened) {
+				f.open(save_name, "wb");
+				opened = true;
+			}
+			if (opened) {
+				string chunk = h.response_body;
+				if (chunk != "") f.write(chunk);
+			}
+			int step = int(h.progress * 10);
+			if (step > 0 && step != last_step) {
+				last_step = step;
+				audio.play_sound("update_tick");
+				audio.speak("" + (step * 10) + "% " + tr("downloaded", "скачено"), true);
+			}
+			if (t.elapsed > 90000) {
+				h.reset();
+				if (opened) f.close();
+				file_delete(save_name);
+				audio.speak(tr("Download failed.", "Скачивание не удалось."), false);
+				return;
+			}
+		}
+		if (h.status_code == 200 && opened) {
+			string chunk = h.response_body;
+			if (chunk != "") f.write(chunk);
+f.close();
+				audio.play_sound("update_done");
+				audio.speak(tr("Update downloaded: ", "Обновление скачано: ") + save_name + tr(". Run it to install, then restart the game.", ". Запустите его и перезапустите игру."), true);
+				if (is_touch_ui()) {
+					audio.speak(tr("Press OK to open the installer.", "Нажмите OK, чтобы открыть установщик."), true);
+					question(tr("Update ready", "Обновление готово"), tr("Press OK to install the update.", "Нажмите OK, чтобы установить обновление."));
+					string upd_path = cwdir();
+					if (upd_path != "" && upd_path.substr(upd_path.length() - 1, 1) != "/" && upd_path.substr(upd_path.length() - 1, 1) != "\\") upd_path += "/";
+					if (!urlopen("file://" + upd_path + save_name)) {
+						audio.speak(tr("Automatic install is blocked on this Android. Path: ", "Автоматическая установка на этом Android заблокирована. Путь: ") + upd_path + save_name + tr(". Do this: 1. open your file manager, 2. allow 'install from unknown sources' for it, 3. open this file, 4. reopen the game.", ". Сделайте: 1. откройте файловый менеджер, 2. разрешите там «установку из неизвестных источников», 3. запустите этот файл, 4. откройте игру заново."), true);
+					} else {
+						audio.speak(tr("The installer is open. Follow the on-screen instructions, then reopen the game.", "Установщик открыт. Следуйте инструкциям на экране, затем откройте игру заново."), true);
+					}
+				} else {
+					int keep = question(tr("Update downloaded", "Обновление скачано"), tr("Keep the update file?", "Оставить файл обновления?"));
+					if (keep != 1) { file_delete(save_name); audio.speak(tr("Update file removed.", "Файл обновления удалён."), false); }
+				}
+		} else {
+			if (opened) f.close();
+			file_delete(save_name);
+			audio.speak(tr("Download failed.", "Скачивание не удалось."), true);
+		}
 	}
 
 	private void show_main_menu() {
 		log.log("show_main_menu()");
-		string[] items = {"Сюжет — 10 миссий", "Песочница — свободная игра", "Лаборатория — тренировка", "Выход"};
+		mode = MODE_NONE;
+		start_menu_music();
+		string[] items = {
+			tr("Story — 10 missions", "Сюжет — 10 миссий"),
+			tr("Sandbox — free play", "Песочница — свободная игра"),
+			tr("Lab — training", "Лаборатория — тренировка"),
+			tr("Settings", "Настройки"),
+			tr("Exit", "Выход")
+		};
 		game_menu.set_items(items);
 		game_menu.open();
-		mode = MODE_NONE;
 
 		while (game_menu.is_active()) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+			if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 			if (key_pressed(KEY_RETURN)) {
 				int sel = game_menu.get_selected();
 				game_menu.close();
@@ -167,7 +477,8 @@ class HackerGame {
 				if (sel == 0) start_story();
 				else if (sel == 1) start_sandbox();
 				else if (sel == 2) start_lab();
-				else if (sel == 3) {
+				else if (sel == 3) show_settings_menu();
+				else if (sel == 4) {
 					log.log("Quit selected");
 					running = false;
 				}
@@ -191,12 +502,13 @@ class HackerGame {
 	private void start_story() {
 		log.log("start_story()");
 		mode = MODE_STORY;
-		audio.speak("Сюжетный режим. Вы хакер-фрилансер. Ваш клиент свяжется с вами.", true);
+		stop_menu_music();
+		audio.speak(tr("Story mode. You are a freelance hacker. Your client will contact you.", "Сюжетный режим. Вы хакер-фрилансер. Ваш клиент свяжется с вами."), true);
 		wait(500);
 		Mission@ m = story.get_current_mission();
 		if (@m != null) {
 			log.log("Mission: " + m.title);
-			audio.speak("Миссия " + (story.get_current_index() + 1) + ": " + m.title, true);
+			audio.speak(tr("Mission ", "Миссия ") + (story.get_current_index() + 1) + ": " + m.title, true);
 			wait(300);
 			audio.speak(m.description, true);
 		} else {
@@ -208,22 +520,28 @@ class HackerGame {
 	private void start_sandbox() {
 		log.log("start_sandbox()");
 		mode = MODE_SANDBOX;
+		stop_menu_music();
 		set_sandbox_params();
 		init_sandbox_network();
 		begin_terminal();
 	}
 
 	private void set_sandbox_params() {
-		string[] scenario_types = {"Сеть — взлом серверов", "Люди — социальная инженерия", "Системы — взлом инфраструктуры"};
+		string[] scenario_types = {
+			tr("Network — hack servers", "Сеть — взлом серверов"),
+			tr("People — social engineering", "Люди — социальная инженерия"),
+			tr("Systems — hack infrastructure", "Системы — взлом инфраструктуры")
+		};
 		string target_type = "server";
 		int servers = 5, ids = 1;
 
-		audio.speak("Выберите сценарий: стрелки, Enter — подтвердить.", true);
+		audio.speak(tr("Choose a scenario: ", "Выберите сценарий: ") + hint_move() + ", " + hint_select() + ".", true);
 		wait(300);
 		int sel = 0;
 		bool sc_done = false;
 		while (!sc_done) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) { sel = sel > 0 ? sel - 1 : 2; audio.speak(scenario_types[sel], true); wait(120); }
 			if (key_pressed(KEY_DOWN)) { sel = sel < 2 ? sel + 1 : 0; audio.speak(scenario_types[sel], true); wait(120); }
 			if (key_pressed(KEY_RETURN)) {
@@ -239,42 +557,44 @@ class HackerGame {
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 		}
 
-		audio.speak("Число целей: стрелки, Enter — подтвердить.", true);
+		audio.speak(tr("Target count: ", "Число целей: ") + hint_move() + ", " + hint_select() + ".", true);
 		wait(200);
 		bool done = false;
 		while (!done) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) {
 				servers = servers < 20 ? servers + 1 : 3;
-				audio.speak("" + servers + " целей", true);
+				audio.speak("" + servers + tr(" targets", " целей"), true);
 				wait(120);
 			}
 			if (key_pressed(KEY_DOWN)) {
 				servers = servers > 3 ? servers - 1 : 20;
-				audio.speak("" + servers + " целей", true);
+				audio.speak("" + servers + tr(" targets", " целей"), true);
 				wait(120);
 			}
 			if (key_pressed(KEY_RETURN)) {
-				audio.speak("Сложность защиты: стрелки — изменить, Enter — готово.", true);
+				audio.speak(tr("Defense difficulty: ", "Сложность защиты: ") + hint_move() + ", " + hint_select() + ".", true);
 				wait(200);
 				bool done_ids = false;
 				while (!done_ids) {
 					wait(5);
+g_touch.monitor();
 					if (key_pressed(KEY_UP)) {
 						ids = ids < 5 ? ids + 1 : 0;
-						audio.speak("Сложность " + ids, true);
+						audio.speak(tr("Difficulty ", "Сложность ") + ids, true);
 						wait(120);
 					}
 					if (key_pressed(KEY_DOWN)) {
 						ids = ids > 0 ? ids - 1 : 5;
-						audio.speak("Сложность " + ids, true);
+						audio.speak(tr("Difficulty ", "Сложность ") + ids, true);
 						wait(120);
 					}
 					if (key_pressed(KEY_RETURN)) {
 						done_ids = true;
 					}
 					if (key_pressed(KEY_ESCAPE)) {
-						audio.speak("Настройка отменена", true);
+						audio.speak(tr("Setup cancelled", "Настройка отменена"), true);
 						servers = 5; ids = 1; target_type = "server";
 						done_ids = true;
 					}
@@ -284,7 +604,7 @@ class HackerGame {
 				done = true;
 			}
 			if (key_pressed(KEY_ESCAPE)) {
-				audio.speak("Настройка отменена", true);
+				audio.speak(tr("Setup cancelled", "Настройка отменена"), true);
 				servers = 5; ids = 1; target_type = "server";
 				done = true;
 			}
@@ -292,48 +612,320 @@ class HackerGame {
 			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
 		}
 		sandbox.configure(servers, ids);
-		string type_name = target_type == "person" ? "социальной инженерии" : target_type == "system" ? "систем" : "серверов";
+		string type_name = target_type == "person" ? tr("social engineering", "социальной инженерии") : target_type == "system" ? tr("systems", "систем") : tr("servers", "серверов");
 		sandbox.set_target_type(target_type);
 		sandbox.start();
-		audio.speak("Песочница: " + servers + " целей, тип: " + type_name + ", сложность " + ids + ".", true);
+		audio.speak(tr("Sandbox: ", "Песочница: ") + servers + tr(" targets, type: ", " целей, тип: ") + type_name + tr(", difficulty ", ", сложность ") + ids + ".", true);
 	}
 
 	private void init_sandbox_network() {
-		network.generate_scenario(sandbox.get_server_count(), sandbox.get_target_type());
+		network.generate_scenario(sandbox.get_server_count(), sandbox.get_target_type(), sandbox.get_ids_level());
 		wait(200);
-		audio.speak("Сгенерировано " + sandbox.get_server_count() + " целей.", false);
+		audio.speak(tr("Generated ", "Сгенерировано ") + sandbox.get_server_count() + tr(" targets.", " целей."), false);
 	}
 
 	private void start_lab() {
 		log.log("start_lab()");
 		mode = MODE_LAB;
-		audio.speak("Лаборатория. Тренировка навыков взлома.", true);
+		stop_menu_music();
+		audio.speak(tr("Lab. Training hacking skills.", "Лаборатория. Тренировка навыков взлома."), true);
 		wait(200);
 		show_lab_menu();
 	}
 
-	private void show_lab_menu() {
-		string[] items = {"Подбор пароля (bruteforce)", "Взлом шифрования (crack)", "Обход фаервола (firewall)", "Сканирование портов", "Вернуться в меню"};
+	private void apply_music_volume() {
+		if (@music_player == null) return;
+		if (music_level == 0) {
+			if (music_player.playing) music_player.stop();
+		} else {
+			music_player.volume = music_level == 1 ? -18.0 : -10.0;
+			if (!music_player.playing) music_player.play_looped();
+		}
+	}
+
+	private void start_menu_music() {
+		if (@music_player == null) return;
+		if (music_level > 0 && !music_player.playing) {
+			music_player.volume = music_level == 1 ? -18.0 : -10.0;
+			music_player.play_looped();
+		}
+	}
+
+	private void stop_menu_music() {
+		if (@music_player != null && music_player.playing) music_player.stop();
+	}
+
+	private void save_settings() {
+		if (is_touch_ui()) {
+			S.write_number("music", music_level);
+			S.write_bool("sfx", sfx_enabled);
+			S.write_number("voice", voice_mode);
+			S.write_number("lang", speech_language);
+			S.write_number("spkv", speech_volume);
+			S.write_number("uilang", ui_lang);
+			S.write_bool("upd", update_check);
+			log.log("Settings saved via settings.nvgt");
+			return;
+		}
+		string path = settings_path();
+		file f;
+		if (f.open(path, "w")) {
+			f.write("music=" + music_level + "\n");
+			f.write("sfx=" + (sfx_enabled ? "1" : "0") + "\n");
+			f.write("voice=" + voice_mode + "\n");
+			f.write("lang=" + speech_language + "\n");
+			f.write("spkv=" + speech_volume + "\n");
+			f.write("uilang=" + ui_lang + "\n");
+			f.write("upd=" + (update_check ? "1" : "0") + "\n");
+			f.close();
+			log.log("Settings saved to " + path);
+		} else {
+			log.log("Settings save FAILED: " + path);
+		}
+	}
+
+	private void load_settings() {
+		if (is_touch_ui()) {
+			music_level = int(S.read_number("music", 2));
+			sfx_enabled = S.read_bool("sfx", true);
+			voice_mode = int(S.read_number("voice", 0));
+			speech_language = int(S.read_number("lang", 0));
+			speech_volume = int(S.read_number("spkv", 0));
+			ui_lang = int(S.read_number("uilang", 0));
+			if (S.exists("upd")) { update_check = S.read_bool("upd", true); upd_flag_was_set = true; }
+			if (music_level < 0) music_level = 0;
+			if (music_level > 2) music_level = 2;
+			if (voice_mode < 0) voice_mode = 0;
+			if (voice_mode > 1) voice_mode = 1;
+			if (speech_language < 0) speech_language = 0;
+			if (speech_language > 1) speech_language = 1;
+			if (speech_volume < 0) speech_volume = 0;
+			if (speech_volume > 2) speech_volume = 2;
+			if (ui_lang < 0) ui_lang = 0;
+			if (ui_lang > 1) ui_lang = 1;
+			log.log("Settings loaded via settings.nvgt");
+			return;
+		}
+		file f;
+		if (f.open(settings_path(), "r")) {
+			string line = f.read_line();
+			while (!line.is_empty()) {
+				int eq = line.find("=");
+				if (eq > 0) {
+					string key = line.substr(0, eq);
+					string val = line.substr(eq + 1, 1);
+					if (key == "music") music_level = parse_int(val);
+					else if (key == "sfx") sfx_enabled = parse_int(val) != 0;
+					else if (key == "voice") voice_mode = parse_int(val);
+					else if (key == "lang") speech_language = parse_int(val);
+					else if (key == "spkv") speech_volume = parse_int(val);
+					else if (key == "uilang") ui_lang = parse_int(val);
+					else if (key == "upd") { update_check = parse_int(val) != 0; upd_flag_was_set = true; }
+				}
+				line = f.read_line();
+			}
+			f.close();
+			if (music_level < 0) music_level = 0;
+			if (music_level > 2) music_level = 2;
+			if (voice_mode < 0) voice_mode = 0;
+			if (voice_mode > 1) voice_mode = 1;
+			if (speech_language < 0) speech_language = 0;
+			if (speech_language > 1) speech_language = 1;
+			if (speech_volume < 0) speech_volume = 0;
+			if (speech_volume > 2) speech_volume = 2;
+			if (ui_lang < 0) ui_lang = 0;
+			if (ui_lang > 1) ui_lang = 1;
+			log.log("Settings loaded: music=" + music_level + ", sfx=" + (sfx_enabled ? "1" : "0") + ", voice=" + voice_mode + ", lang=" + speech_language + ", spkv=" + speech_volume);
+		} else {
+			log.log("No settings file, using defaults");
+		}
+	}
+
+	private string music_label() {
+		if (music_level == 0) return tr("off", "выключена");
+		if (music_level == 1) return tr("quiet", "тихая");
+		return tr("loud", "громкая");
+	}
+
+	private string voice_label() {
+		if (is_touch_ui()) {
+			if (voice_mode == 0) return tr("TalkBack", "Экранный диктор");
+			return tr("Android system voice", "Встроенный голос");
+		}
+		if (voice_mode == 0) return tr("Screen reader (NVDA)", "Скринридер (NVDA)");
+		return tr("System voice (SAPI)", "Системный голос (SAPI)");
+	}
+
+	private string lang_label() {
+		if (speech_language == 0) return "Русский";
+		return "English";
+	}
+
+	private string ui_lang_label() {
+		if (ui_lang == 0) return "Русский";
+		return "English";
+	}
+
+	private string speech_vol_label() {
+		if (speech_volume == 1) return tr("loud", "громко");
+		if (speech_volume == 2) return tr("quiet", "тише");
+		return tr("normal", "норма");
+	}
+
+	private void show_settings_menu() {
+		string[] items = {
+			tr("Music: ", "Музыка: ") + music_label(),
+			tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")),
+			tr("Voice: ", "Голос: ") + voice_label(),
+			tr("Speech language: ", "Язык речи: ") + lang_label(),
+			tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
+			tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
+			tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
+			tr("Check for updates", "Проверить обновления"),
+			tr("About", "О игре"),
+			tr("Back to menu", "Вернуться в меню")
+		};
 		game_menu.set_items(items);
 		game_menu.open();
 
 		while (game_menu.is_active()) {
 			wait(5);
+g_touch.monitor();
 			if (key_pressed(KEY_UP)) game_menu.move_up();
 			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+			if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
+			if (key_pressed(KEY_RETURN)) {
+				int sel = game_menu.get_selected();
+				if (sel == 0) {
+					music_level = (music_level + 1) % 3;
+					apply_music_volume();
+					save_settings();
+					game_menu.set_item(0, tr("Music: ", "Музыка: ") + music_label());
+					audio.speak(tr("Music: ", "Музыка: ") + music_label(), true);
+				} else if (sel == 1) {
+					sfx_enabled = !sfx_enabled;
+					audio.set_sfx_enabled(sfx_enabled);
+					save_settings();
+					game_menu.set_item(1, tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")));
+					audio.speak(tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")), true);
+				} else if (sel == 2) {
+					voice_mode = (voice_mode + 1) % 2;
+					init_tts_voice();
+					save_settings();
+					game_menu.set_item(2, tr("Voice: ", "Голос: ") + voice_label());
+					audio.speak(tr("Voice: ", "Голос: ") + voice_label(), true);
+					audio.speak(tr("Voice check. One, two, three.", "Проверка голоса. Раз, два, три."), true);
+				} else if (sel == 3) {
+					speech_language = (speech_language + 1) % 2;
+					init_tts_voice();
+					save_settings();
+					game_menu.set_item(3, tr("Speech language: ", "Язык речи: ") + lang_label());
+					audio.speak(tr("Speech language: ", "Язык речи: ") + lang_label(), true);
+					audio.speak(tr("Voice check. One, two, three.", "Проверка. Раз, два, три."), true);
+				} else if (sel == 4) {
+					speech_volume = (speech_volume + 1) % 3;
+					init_tts_voice();
+					save_settings();
+					game_menu.set_item(4, tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label());
+					audio.speak(tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(), true);
+					audio.speak(tr("Test", "Проверка"), true);
+				} else if (sel == 5) {
+					ui_lang = (ui_lang + 1) % 2;
+					// Keep the spoken voice in sync with the interface language
+					speech_language = ui_lang;
+					init_tts_voice();
+					save_settings();
+					string[] back = {
+						tr("Music: ", "Музыка: ") + music_label(),
+						tr("Sounds: ", "Звуки: ") + (sfx_enabled ? tr("on", "включены") : tr("off", "выключены")),
+						tr("Voice: ", "Голос: ") + voice_label(),
+						tr("Speech language: ", "Язык речи: ") + lang_label(),
+						tr("Speech loudness: ", "Громкость речи: ") + speech_vol_label(),
+						tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(),
+						tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")),
+						tr("Check for updates", "Проверить обновления"),
+						tr("About", "О игре"),
+						tr("Back to menu", "Вернуться в меню")
+					};
+					game_menu.set_items(back);
+					audio.speak(tr("Interface language: ", "Язык интерфейса: ") + ui_lang_label(), true);
+					audio.speak(tr("This game is now in English.", "Игра теперь на русском языке."), true);
+				} else if (sel == 6) {
+					update_check = !update_check;
+					save_settings();
+					game_menu.set_item(6, tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")));
+					audio.speak(tr("Update check: ", "Автопроверка обновлений: ") + (update_check ? tr("on", "вкл") : tr("off", "выкл")), true);
+				} else if (sel == 7) {
+					game_menu.close();
+					maybe_check_updates(true);
+					show_settings_menu();
+					return;
+				} else if (sel == 8) {
+					audio.speak(tr("Hacker Simulator: Zero Day, version ", "Хакер-симулятор: Zero Day, версия ") + GAME_VERSION + tr(". Updates: ", ". Проверка обновлений: ") + (update_check ? tr("on.", "вкл.") : tr("off.", "выкл.")), true);
+				} else if (sel == 9) {
+					game_menu.close();
+					show_main_menu();
+					return;
+				}
+			}
+			if (key_pressed(KEY_ESCAPE)) {
+				game_menu.close();
+				show_main_menu();
+				return;
+			}
+			if (key_pressed(KEY_LEFT)) audio.history_back();
+			if (key_pressed(KEY_RIGHT)) audio.history_forward();
+		}
+	}
+
+	private void music_adjust(int step) {
+		int new_level = music_level + step;
+		if (new_level < 0) new_level = 0;
+		if (new_level > 2) new_level = 2;
+		if (new_level != music_level) {
+			music_level = new_level;
+			apply_music_volume();
+			save_settings();
+		}
+		audio.speak(tr("Music: ", "Музыка: ") + music_label(), true);
+	}
+
+	private void show_lab_menu() {
+		string[] items = {
+			tr("Password bruteforce", "Подбор пароля (bruteforce)"),
+			tr("Encryption crack", "Взлом шифрования (crack)"),
+			tr("Firewall bypass", "Обход фаервола (firewall)"),
+			tr("Port scanning", "Сканирование портов"),
+			tr("Back to menu", "Вернуться в меню")
+		};
+		game_menu.set_items(items);
+		game_menu.open();
+
+		while (game_menu.is_active()) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_UP)) game_menu.move_up();
+			if (key_pressed(KEY_DOWN)) game_menu.move_down();
+			if (key_pressed(KEY_HOME)) game_menu.move_first();
+			if (key_pressed(KEY_END)) game_menu.move_last();
+			if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+			if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 			if (key_pressed(KEY_RETURN)) {
 				int sel = game_menu.get_selected();
 				game_menu.close();
 				if (sel == 0) {
-					audio.speak("Тренировка подбора пароля. Сложность: 3.", true);
+					audio.speak(tr("Password bruteforce training. Difficulty: 3.", "Тренировка подбора пароля. Сложность: 3."), true);
 					hacking.bruteforce(3);
 					show_lab_menu();
 				} else if (sel == 1) {
-					audio.speak("Тренировка взлома шифрования. Сложность: 3.", true);
+					audio.speak(tr("Encryption crack training. Difficulty: 3.", "Тренировка взлома шифрования. Сложность: 3."), true);
 					hacking.crack_encryption(3);
 					show_lab_menu();
 				} else if (sel == 2) {
-					audio.speak("Тренировка обхода фаервола. Сложность: 3.", true);
+					audio.speak(tr("Firewall bypass training. Difficulty: 3.", "Тренировка обхода фаервола. Сложность: 3."), true);
 					hacking.firewall_bypass(3);
 					show_lab_menu();
 				} else if (sel == 3) {
@@ -373,7 +965,12 @@ class HackerGame {
 		if (terminal.command_count() == 0) {
 			init_terminal_commands();
 		}
-		audio.speak("Терминал готов. Стрелки — выбрать, Enter — выполнить. Клавиши: S E C F B K M D X H. Tab — навигация.", true);
+		audio.speak(trk(
+			"Terminal ready. Arrows — choose, Enter — run. Keys: S E C F B K M D X H. Tab — navigation.",
+			"Терминал готов. Стрелки — выбрать, Enter — выполнить. Клавиши: S E C F B K M D X H. Tab — навигация.",
+			"Terminal ready. " + hint_move() + " between commands, " + hint_select() + ". Two-finger swipe right — results, two-finger swipe left — back. Commands: scan, connect, enum, firewall, bruteforce, crack, download, spam, disconnect, help.",
+			"Терминал готов. " + hint_move() + " по командам, " + hint_select() + ". Двумя пальцами вправо — вкладка результата, двумя влево — назад. Команды: scan, connect, enum, firewall, bruteforce, crack, download, spam, disconnect, help."
+		), true);
 	}
 
 	private void handle_input() {
@@ -385,6 +982,15 @@ class HackerGame {
 		if (key_pressed(KEY_RIGHT)) {
 			audio.history_forward();
 			wait(100);
+			return;
+		}
+
+		if (key_pressed(KEY_PAGEUP)) {
+			music_adjust(1);
+			return;
+		}
+		if (key_pressed(KEY_PAGEDOWN)) {
+			music_adjust(-1);
 			return;
 		}
 
@@ -403,11 +1009,11 @@ class HackerGame {
 			if (focus == FOCUS_TERMINAL) {
 				focus = FOCUS_RESULTS;
 				audio.terminal_click();
-				audio.speak("Результаты", true);
+				audio.speak(tr("Results", "Результаты"), true);
 			} else {
 				focus = FOCUS_TERMINAL;
 				audio.terminal_click();
-				audio.speak("Ввод команд", true);
+				audio.speak(tr("Command input", "Ввод команд"), true);
 			}
 			wait(150);
 			return;
@@ -466,6 +1072,37 @@ class HackerGame {
 		}
 	}
 
+	private void init_tts_voice() {
+		// Without a screen reader NVGT falls back to SAPI; its default voice
+		// is the unusable "builtin fallback" which garbles Russian text.
+		// Prefer a real voice in the chosen language, adjust SAPI loudness.
+		use_sr = (voice_mode == 0);
+		int first_real = -1;
+		int best = -1;
+		for (int i = 0; i < tts.get_voice_count(); i++) {
+			string n = tts.get_voice_name(i).lower();
+			if (n.find("builtin") >= 0) continue;
+			if (first_real < 0) first_real = i;
+			int score = 0;
+			if (speech_language == 0) {
+				if (n.find("irina") >= 0 || n.find("pavel") >= 0 || n.find("natalia") >= 0 || n.find("полина") >= 0) score = 2;
+				else if (n.find("russian") >= 0 || n.find("русский") >= 0 || n.find("ru") >= 0) score = 1;
+			} else {
+				if (n.find("david") >= 0 || n.find("zira") >= 0 || n.find("mark") >= 0 || n.find("hazel") >= 0 || n.find("george") >= 0) score = 2;
+				else if (n.find("english") >= 0) score = 1;
+			}
+			if (score > 0 && (best < 0 || score > 1)) best = i;
+		}
+		int chosen = best >= 0 ? best : first_real;
+		if (chosen >= 0) {
+			tts.set_voice(chosen);
+			log.log("TTS voice: " + tts.get_voice_name(chosen));
+		}
+		if (voice_mode == 1) {
+			tts.volume = speech_volume == 1 ? 0.0 : (speech_volume == 2 ? -8.0 : -3.0);
+		}
+	}
+
 	private void run_command(string name) {
 		log.log("run_command: " + name);
 
@@ -491,7 +1128,7 @@ class HackerGame {
 				Server@ s = network.get_current();
 				if (@s != null && s.compromised) {
 					audio.terminal_beep();
-					audio.speak("Сервер уже взломан. Отключитесь (X) для сканирования новых целей.", true);
+					audio.speak(tr("Server already hacked. Disconnect (X) to scan new targets.", "Сервер уже взломан. Отключитесь (X) для сканирования новых целей."), true);
 					return;
 				}
 				// Disconnect before scanning new network
@@ -507,26 +1144,27 @@ class HackerGame {
 				network.generate(count);
 			} else if (mode == MODE_SANDBOX) {
 				count = sandbox.get_server_count();
-				network.generate_scenario(count, sandbox.get_target_type());
+				network.generate_scenario(count, sandbox.get_target_type(), sandbox.get_ids_level());
 			} else {
 				count = 3;
 				network.generate(count);
 			}
 			wait(300);
-			audio.speak("Найдено " + network.server_count() + " серверов.", false);
+			audio.play_sound("target_found");
+			audio.speak(tr("Found ", "Найдено ") + network.server_count() + tr(" servers.", " серверов."), false);
 			for (int i = 0; i < network.server_count(); i++) {
 				Server@ s = network.get_server(i);
 				if (@s != null) {
 					wait(200);
 					audio.terminal_click();
-					audio.speak("Сервер " + (i + 1) + ": " + s.hostname + " [" + s.ip + "]", true);
+					audio.speak(tr("Server ", "Сервер ") + (i + 1) + ": " + s.hostname + " [" + s.ip + "]", true);
 				}
 			}
 			wait(150);
 			focus = FOCUS_RESULTS;
 			current_server = 0;
 			Server@ s = network.get_server(0);
-			if (@s != null) audio.speak("Выбран: " + s.hostname, false);
+			if (@s != null) audio.speak(tr("Selected: ", "Выбран: ") + s.hostname, false);
 
 			// In sandbox mode after scan, add more servers if pool getting low
 			if (mode == MODE_SANDBOX) {
@@ -538,20 +1176,20 @@ class HackerGame {
 		if (name == "connect") {
 			if (current_server < 0 || network.server_count() == 0) {
 				audio.error_beep();
-				audio.speak("Нет серверов. Сначала scan.", true);
+				audio.speak(tr("No servers. Run scan first.", "Нет серверов. Сначала scan."), true);
 				return;
 			}
 			Server@ s = network.get_server(current_server);
 			if (@s == null) return;
 			if (s.compromised) {
-				audio.speak("Сервер уже взломан. Выберите другой.", true);
+				audio.speak(tr("Server already hacked. Pick another.", "Сервер уже взломан. Выберите другой."), true);
 				return;
 			}
 			terminal.set_hostname(s.hostname);
 			connected = true;
 			network.set_current(current_server);
 			audio.access_granted();
-			audio.speak("Подключён к " + s.hostname + ". Защита: фаервол " + s.firewall_strength + ", шифрование " + s.encryption_level + ".", true);
+			audio.speak(tr("Connected to ", "Подключён к ") + s.hostname + tr(". Protection: firewall ", ". Защита: фаервол ") + s.firewall_strength + tr(", encryption ", ", шифрование ") + s.encryption_level + ".", true);
 			return;
 		}
 
@@ -561,7 +1199,7 @@ class HackerGame {
 		else if (name == "bruteforce") {
 			if (cur is null || !connected) {
 				audio.error_beep();
-				audio.speak("Нет подключения.", true);
+				audio.speak(tr("No connection.", "Нет подключения."), true);
 				return;
 			}
 			cmd_bruteforce.execute(mode_to_string(), connected, cur);
@@ -579,23 +1217,25 @@ class HackerGame {
 				Mission@ m = story.get_current_mission();
 				if (@m != null) {
 					story.complete_mission(story.get_current_index());
-					audio.speak("Миссия " + (story.get_current_index() + 1) + " выполнена. Репутация: " + story.get_reputation(), true);
+					audio.play_sound("mission_success");
+					audio.speak(tr("Mission ", "Миссия ") + (story.get_current_index() + 1) + tr(" complete. Reputation: ", " выполнена. Репутация: ") + story.get_reputation(), true);
 					if (story.has_next()) {
 						story.advance();
 						Mission@ next = story.get_current_mission();
 						if (@next != null) {
-							audio.speak("Новая миссия: " + next.title + ". " + next.description, true);
+							audio.play_sound("mission_new");
+							audio.speak(tr("New mission: ", "Новая миссия: ") + next.title + ". " + next.description, true);
 						}
 						// Disconnect so player can scan new targets
 						disconnect();
 					} else {
-						audio.speak("Все миссии пройдены! Вы — мастер хакер.", true);
+						audio.speak(tr("All missions complete! You are a master hacker.", "Все миссии пройдены! Вы — мастер хакер."), true);
 						audio.success_beep();
 					}
 				}
 			}
 			if (ok && mode == MODE_SANDBOX) {
-				audio.speak("Данные скачаны. Ищите новый сервер.", true);
+				audio.speak(tr("Data downloaded. Find a new server.", "Данные скачаны. Ищите новый сервер."), true);
 				check_sandbox_refill();
 			}
 		}
@@ -612,11 +1252,11 @@ class HackerGame {
 		}
 		if (compromised >= total - 1 && total >= 2) {
 			string type_name = sandbox.get_target_type();
-			audio.speak("Большинство целей взломано. Генерирую новые...", true);
+			audio.speak(tr("Most targets hacked. Generating new ones...", "Большинство целей взломано. Генерирую новые..."), true);
 			wait(300);
 			audio.power_up();
-			network.generate_scenario(sandbox.get_server_count(), type_name);
-			audio.speak("Новая сеть: " + sandbox.get_server_count() + " целей.", true);
+			network.generate_scenario(sandbox.get_server_count(), type_name, sandbox.get_ids_level());
+			audio.speak(tr("New network: ", "Новая сеть: ") + sandbox.get_server_count() + tr(" targets.", " целей."), true);
 			if (connected) {
 				connected = false;
 				terminal.set_hostname("localhost");
@@ -640,8 +1280,8 @@ class HackerGame {
 				current_server = current_server > 0 ? current_server - 1 : 0;
 				Server@ s = network.get_server(current_server);
 				if (@s != null) {
-					string status = s.compromised ? ", взломан" : "";
-					audio.speak("Сервер " + s.hostname + " [" + s.ip + "]" + status, true);
+					string status = s.compromised ? tr(", hacked", ", взломан") : "";
+					audio.speak(tr("Server ", "Сервер ") + s.hostname + " [" + s.ip + "]" + status, true);
 				}
 			} else {
 				audio.terminal_beep();
@@ -653,8 +1293,8 @@ class HackerGame {
 				current_server++;
 				Server@ s = network.get_server(current_server);
 				if (@s != null) {
-					string status = s.compromised ? ", взломан" : "";
-					audio.speak("Сервер " + s.hostname + " [" + s.ip + "]" + status, true);
+					string status = s.compromised ? tr(", hacked", ", взломан") : "";
+					audio.speak(tr("Server ", "Сервер ") + s.hostname + " [" + s.ip + "]" + status, true);
 				}
 			} else {
 				audio.terminal_beep();
@@ -669,19 +1309,19 @@ class HackerGame {
 		connected = false;
 		terminal.clear();
 		focus = FOCUS_TERMINAL;
-		audio.speak("Отключено.", true);
+		audio.speak(tr("Disconnected.", "Отключено."), true);
 	}
 
 	private void show_context_menu() {
 		string[] items;
 		if (mode == MODE_STORY) {
-			items = {"Вернуться в терминал", "Статус миссии", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Mission status", "Статус миссии"), tr("Main menu", "Главное меню")};
 		} else if (mode == MODE_SANDBOX) {
-			items = {"Вернуться в терминал", "Настройка песочницы", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Sandbox setup", "Настройка песочницы"), tr("Main menu", "Главное меню")};
 		} else if (mode == MODE_LAB) {
-			items = {"Вернуться в терминал", "Лаборатория", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Lab", "Лаборатория"), tr("Main menu", "Главное меню")};
 		} else {
-			items = {"Вернуться в терминал", "Главное меню"};
+			items = {tr("Back to terminal", "Вернуться в терминал"), tr("Main menu", "Главное меню")};
 		}
 		context_menu.set_items(items);
 		context_menu.open();
@@ -696,6 +1336,16 @@ class HackerGame {
 			context_menu.move_down();
 			wait(120);
 		}
+		if (key_pressed(KEY_HOME)) {
+			context_menu.move_first();
+			wait(120);
+		}
+		if (key_pressed(KEY_END)) {
+			context_menu.move_last();
+			wait(120);
+		}
+		if (key_pressed(KEY_PAGEUP)) music_adjust(1);
+		if (key_pressed(KEY_PAGEDOWN)) music_adjust(-1);
 		if (key_pressed(KEY_RETURN)) {
 			int sel = context_menu.get_selected();
 			context_menu.close();
@@ -729,16 +1379,17 @@ class HackerGame {
 	}
 
 	private void show_mission_status() {
-		audio.speak("Миссия " + (story.get_current_index() + 1) + " из " + story.get_mission_count(), true);
+		audio.speak(tr("Mission ", "Миссия ") + (story.get_current_index() + 1) + tr(" of ", " из ") + story.get_mission_count(), true);
 		Mission@ m = story.get_current_mission();
 		if (@m != null) {
-			audio.speak("Текущая: " + m.title, true);
+			audio.speak(tr("Current: ", "Текущая: ") + m.title, true);
 		}
 		int completed_count = 0;
 		for (int i = 0; i < story.get_mission_count(); i++) {
 			if (story.is_completed(i)) completed_count++;
 		}
-		audio.speak("Выполнено: " + completed_count + ". Репутация: " + story.get_reputation(), true);
+		audio.speak(tr("Completed: ", "Выполнено: ") + completed_count + tr(". Reputation: ", ". Репутация: ") + story.get_reputation(), true);
+		audio.speak(tr("Hacks: ", "Взломано: ") + g_hacked_count + tr(". Rank: ", ". Ранг: ") + rank_title(g_hacked_count), true);
 	}
 };
 

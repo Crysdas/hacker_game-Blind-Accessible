@@ -1,0 +1,267 @@
+class AudioManager {
+	private string[] sound_names;
+	private array<sound@> sound_handles;
+	private int[] tone_freqs;
+	private array<sound@> tone_handles;
+	private int[] tone_short_freqs;
+	private array<sound@> tone_short_handles;
+	private bool loaded;
+	bool sfx_enabled;
+	string last_spoken;
+	private string[] speech_history;
+	private int speech_cursor;
+	private uint SPEECH_HISTORY_MAX;
+
+	AudioManager() {
+		loaded = false;
+		sfx_enabled = true;
+		sound_names.resize(0);
+		sound_handles.resize(0);
+		tone_freqs.resize(0);
+		tone_handles.resize(0);
+		tone_short_freqs.resize(0);
+		tone_short_handles.resize(0);
+		SPEECH_HISTORY_MAX = 200;
+		speech_history.resize(0);
+		speech_cursor = -1;
+	}
+
+	void load_sounds() {
+		load_sound("click", "sounds/terminal/click.ogg");
+		load_sound("type", "sounds/terminal/type.ogg");
+		load_sound("beep", "sounds/ui/beep.ogg");
+		load_sound("success", "sounds/ui/success.ogg");
+		load_sound("error", "sounds/ui/error.ogg");
+		load_sound("power_up", "sounds/ui/power_up.ogg");
+		load_sound("disconnect", "sounds/ui/disconnect.ogg");
+		load_sound("force_field", "sounds/alarm/force_field.ogg");
+		load_sound("alert", "sounds/alarm/alert.ogg");
+		load_sound("scan", "sounds/hack/scan.ogg");
+		load_sound("laser", "sounds/hack/laser.ogg");
+		load_sound("impact", "sounds/hack/impact.ogg");
+		load_sound("ambient", "sounds/ambient/computer_hum.ogg");
+		load_sound("laser_large", "sounds/Audio/laserLarge_000.ogg");
+		load_sound("explosion", "sounds/Audio/explosionCrunch_000.ogg");
+		load_sound("access_granted", "sounds/Audio/doorOpen_000.ogg");
+		load_sound("access_denied", "sounds/Audio/doorClose_000.ogg");
+		load_sound("warning", "sounds/Audio/forceField_001.ogg");
+		load_sound("logo_riser", "sounds/ui/logo_riser.ogg");
+		load_sound("logo_hit", "sounds/ui/logo_hit.ogg");
+		load_sound("logo_chime", "sounds/ui/logo_chime.ogg");
+		load_sound("logo_sparkle", "sounds/ui/logo_sparkle.ogg");
+		load_sound("menu_move", "sounds/ui/menu_move.ogg");
+		load_sound("target_found", "sounds/ui/target_found.ogg");
+		load_sound("mission_success", "sounds/ui/mission_success.ogg");
+		load_sound("mission_new", "sounds/ui/mission_new.ogg");
+		load_sound("hacked", "sounds/alarm/hacked.ogg");
+		load_sound("update_ping", "sounds/ui/update_ping.ogg");
+		load_sound("update_tick", "sounds/ui/update_tick.ogg");
+		load_sound("update_done", "sounds/ui/update_done.ogg");
+		load_all_tones();
+		loaded = true;
+	}
+
+	private void load_all_tones() {
+		for (int freq = 300; freq <= 1100; freq += 10) {
+			load_tone("sounds/tones/tone_" + freq + ".wav", freq);
+			load_tone_short("sounds/tones/tone_short_" + freq + ".wav", freq);
+		}
+		log("Loaded " + tone_freqs.length() + " long + " + tone_short_freqs.length() + " short tones");
+	}
+
+	private void load_sound(string name, string filename) {
+		sound@ s = sound();
+		if (s.load(filename)) {
+			sound_names.insert_last(name);
+			sound_handles.insert_last(@s);
+		} else {
+			log("load_sound FAILED: " + name + " <- " + filename);
+		}
+	}
+
+	private void load_tone(string filename, int freq) {
+		sound@ s = sound();
+		if (s.load(filename)) {
+			tone_freqs.insert_last(freq);
+			tone_handles.insert_last(@s);
+		} else {
+			log("load_tone FAILED: " + freq + "Hz <- " + filename);
+		}
+	}
+
+	private void load_tone_short(string filename, int freq) {
+		sound@ s = sound();
+		if (s.load(filename)) {
+			tone_short_freqs.insert_last(freq);
+			tone_short_handles.insert_last(@s);
+		} else {
+			log("load_tone_short FAILED: " + freq + "Hz <- " + filename);
+		}
+	}
+
+	private int find_sound(string name) {
+		for (uint i = 0; i < sound_names.length(); i++) {
+			if (sound_names[i] == name) return int(i);
+		}
+		return -1;
+	}
+
+	private void play_loaded(string name) {
+		if (!sfx_enabled) return;
+		int idx = find_sound(name);
+		if (idx < 0) return;
+		sound@ s = sound_handles[idx];
+		if (@s != null) {
+			s.stop();
+			s.play();
+		}
+	}
+
+	void set_sfx_enabled(bool enabled) {
+		sfx_enabled = enabled;
+		terminal_click();
+	}
+
+	void play_logo_intro() {
+		play_loaded("logo_riser");
+		wait(2150);
+		play_loaded("logo_hit");
+		wait(140);
+		play_loaded("logo_chime");
+	}
+
+	void speak(string text, bool interrupt = true) {
+		last_spoken = text;
+		speech_history.insert_last(text);
+		if (speech_history.length() > SPEECH_HISTORY_MAX)
+			speech_history.remove_at(0);
+		speech_cursor = int(speech_history.length()) - 1;
+		::speak(text, interrupt);
+	}
+
+	void repeat_last() {
+		if (last_spoken != "")
+			::speak(last_spoken, true);
+	}
+
+	void history_back() {
+		if (speech_history.length() == 0) return;
+		if (speech_cursor > 0) speech_cursor--;
+		::speak(speech_history[speech_cursor], true);
+	}
+
+	void history_forward() {
+		if (speech_history.length() == 0) return;
+		if (speech_cursor < int(speech_history.length()) - 1) speech_cursor++;
+		::speak(speech_history[speech_cursor], true);
+	}
+
+	void play_tone(float freq) {
+		int best = -1;
+		int best_diff = 999999;
+		for (uint i = 0; i < tone_freqs.length(); i++) {
+			int diff = abs(tone_freqs[i] - int(freq));
+			if (diff < best_diff) {
+				best_diff = diff;
+				best = int(i);
+			}
+		}
+		if (best >= 0) {
+			sound@ s = tone_handles[best];
+			if (@s != null) {
+				s.stop();
+				s.play();
+			}
+		}
+	}
+
+	void beep(float freq, float duration) {
+		int best = -1;
+		int best_diff = 999999;
+		array<sound@>@ pool = duration < 200.0 ? @tone_short_handles : @tone_handles;
+		int[]@ freqs = duration < 200.0 ? @tone_short_freqs : @tone_freqs;
+		for (uint i = 0; i < freqs.length(); i++) {
+			int diff = abs(freqs[i] - int(freq));
+			if (diff < best_diff) {
+				best_diff = diff;
+				best = int(i);
+			}
+		}
+		if (best >= 0) {
+			sound@ s = pool[best];
+			if (@s != null) {
+				s.stop();
+				s.play();
+			}
+		}
+	}
+
+	void play_sound(string name) {
+		play_loaded(name);
+	}
+
+	void terminal_click() {
+		play_loaded("click");
+	}
+
+	void terminal_beep() {
+		play_loaded("beep");
+	}
+
+	void error_beep() {
+		play_loaded("error");
+	}
+
+	void success_beep() {
+		play_loaded("success");
+	}
+
+	void scan_sweep() {
+		play_loaded("scan");
+	}
+
+	void alert_beep() {
+		play_loaded("alert");
+	}
+
+	void menu_click() {
+		int idx = find_sound("click");
+		if (idx >= 0) {
+			sound@ s = sound_handles[idx];
+			if (@s != null) s.volume = 0.85;
+		}
+		play_loaded("click");
+	}
+
+	void menu_move() {
+		play_loaded("menu_move");
+	}
+
+	void power_up() {
+		play_loaded("power_up");
+	}
+
+	void disconnect_sound() {
+		play_loaded("disconnect");
+	}
+
+	void access_granted() {
+		play_loaded("access_granted");
+	}
+
+	void access_denied() {
+		play_loaded("access_denied");
+	}
+
+	void explosion_sound() {
+		play_loaded("explosion");
+	}
+
+	void laser_large() {
+		play_loaded("laser_large");
+	}
+
+	void warning_sound() {
+		play_loaded("warning");
+	}
+};

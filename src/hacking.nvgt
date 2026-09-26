@@ -1,0 +1,450 @@
+class HackingGame {
+	private AudioManager@ audio;
+
+	HackingGame(AudioManager@ a) {
+		@audio = @a;
+	}
+
+	// Bruteforce mini-game: randomly pick a variant
+	bool bruteforce(int difficulty) {
+		int variant = random(0, 1);
+		if (variant == 0) return bruteforce_rhythm(difficulty);
+		else return bruteforce_sequence(difficulty);
+	}
+
+	// Classic rhythm variant
+	private bool bruteforce_rhythm(int difficulty) {
+		audio.speak(trk("Brute-force. Press Enter rhythmically.", "Подбор доступа. Нажимайте Enter ритмично.", "Brute-force. Tap the screen once.", "Подбор доступа. Коснитесь экрана."), true);
+		wait(300);
+		if (is_touch_ui()) {
+			if (!touch_single_tap()) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			audio.success_beep();
+			audio.speak(tr("Access attempt accepted!", "Доступ принят!"), true);
+			return true;
+		}
+		audio.speak(trk("Enter to start.", "Enter — начать.", "Double tap to start.", "Двойной тап — начать."), false);
+
+		while (true) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_RETURN)) break;
+			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); wait(100); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); wait(100); }
+		}
+
+		audio.speak(tr("Starting!", "Начинаем!"), true);
+		wait(200);
+		int required = 4 + difficulty;
+		int hits = 0;
+		int beat_gap = 800 - difficulty * 40;
+
+		for (int i = 0; i < required; i++) {
+			int freq = 400 + i * 70;
+			audio.beep(float(freq), 80);
+			wait(80);
+			audio.terminal_click();
+			wait(80);
+			timer t;
+			bool pressed = false;
+			while (t.elapsed < uint(beat_gap)) {
+				wait(5);
+g_touch.monitor();
+				if (key_pressed(KEY_RETURN) && !pressed) {
+					pressed = true;
+					if (t.elapsed < uint(beat_gap - 120)) { hits++; audio.success_beep(); }
+					else { audio.error_beep(); audio.speak(tr("Too late!", "Опоздал!"), true); }
+				}
+				if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+				if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+				if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+			}
+			if (!pressed) { audio.speak(tr("Missed!", "Пропуск!"), true); }
+			wait(100);
+		}
+		audio.speak(tr("Hits: ", "Попаданий: ") + hits + tr(" of ", " из ") + required, true);
+		return hits >= required - 1;
+	}
+
+	// Sequence variant: repeat digits in reverse
+	private bool bruteforce_sequence(int difficulty) {
+		audio.speak(tr("Brute-force. Memorize the code and type it reversed.", "Подбор доступа. Запомните код и введите наоборот."), true);
+		wait(300);
+		int seq_len = 3 + difficulty;
+		int[] seq;
+		for (int i = 0; i < seq_len; i++) seq.insert_last(random(1, 4));
+
+		for (int i = 0; i < seq_len; i++) {
+			audio.speak("" + seq[i], true);
+			wait(250);
+		}
+		wait(200);
+		audio.speak(tr("Type the code backwards. Digits 1-4.", "Введите код задом наперёд. Цифры 1-4."), true);
+
+		int pos = seq_len - 1;
+
+		while (pos >= 0) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_ESCAPE) && !is_touch_ui()) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+
+			int p = 0;
+			if (is_touch_ui()) {
+				p = touch_digit_input(4);
+				if (p < 0) return false;
+			} else {
+				if (key_pressed(KEY_1)) p = 1;
+				else if (key_pressed(KEY_2)) p = 2;
+				else if (key_pressed(KEY_3)) p = 3;
+				else if (key_pressed(KEY_4)) p = 4;
+			}
+
+			if (p > 0) {
+				if (p == seq[pos]) {
+					audio.success_beep();
+					pos--;
+				} else {
+					audio.error_beep();
+					audio.speak(tr("Wrong! Reset.", "Неверно! Сброс."), true);
+					pos = seq_len - 1;
+					for (int i = 0; i < seq_len; i++) { audio.speak("" + seq[i], true); wait(200); }
+					audio.speak(tr("Enter it reversed.", "Введите задом наперёд."), true);
+				}
+				wait(150);
+			}
+		}
+		audio.speak(tr("Access granted!", "Доступ получен!"), true);
+		return true;
+	}
+
+	// Crack encryption mini-game: randomly pick a variant
+	bool crack_encryption(int difficulty) {
+		int variant = random(0, 2);
+		if (variant == 0) return crack_match_tone(difficulty);
+		else if (variant == 1) return crack_odd_one_out(difficulty);
+		else return crack_order_tones(difficulty);
+	}
+
+	// Variant 1: match the reference tone
+	bool crack_match_tone(int difficulty) {
+		audio.speak(tr("Tone match. Memorize the reference.", "Совпадение тона. Запомните эталон."), true);
+		wait(500);
+		int target_freq = 400 + difficulty * 100 + random(0, 3) * 50;
+		int[] options;
+		options.resize(4);
+		int correct_index = random(0, 3);
+		options[correct_index] = target_freq;
+		for (int i = 0; i < 4; i++) {
+			if (i == correct_index) continue;
+			int offset = 0;
+			bool unique = false;
+			while (!unique) {
+				offset = (random(1, 6)) * 50;
+				if ((i % 2) == 0) offset = -offset;
+				options[i] = target_freq + offset;
+				if (options[i] < 300) options[i] = 300 + offset;
+				if (options[i] > 1100) options[i] = 1100 - offset;
+				unique = true;
+				for (int j = 0; j < i; j++) { if (options[j] == options[i]) { unique = false; break; } }
+			}
+		}
+		audio.beep(float(target_freq), 500.0);
+		wait(600);
+		audio.speak(tr("Reference. Enter — options, Space — reference again, 1-4 — answer.", "Эталон. Enter — варианты, Пробел — эталон ещё, 1-4 — ответ."), true);
+		if (is_touch_ui()) {
+			audio.beep(float(target_freq), 500.0);
+			wait(600);
+			for (int i = 0; i < 4; i++) { audio.beep(options[i], 400); wait(200); audio.speak("" + (i+1), true); wait(300); }
+			audio.speak(tr("Choose the answer.", "Выберите ответ."), true);
+			int ans = touch_digit_input(4);
+			if (ans < 0) return false;
+			if (ans == correct_index + 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; }
+			audio.error_beep();
+			audio.speak(tr("Wrong! ", "Неверно! ") + (correct_index + 1), true);
+			return false;
+		}
+		while (true) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_RETURN)) {
+				for (int i = 0; i < 4; i++) { audio.beep(options[i], 400); wait(200); audio.speak("" + (i+1), true); wait(300); }
+				audio.speak(tr("1-4?", "1-4?"), false);
+			}
+			if (key_pressed(KEY_SPACE)) { audio.beep(float(target_freq), 500.0); wait(600); }
+			if (key_pressed(KEY_1)) { if (correct_index == 0) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak("Неверно! " + (correct_index+1), true); return false; } }
+			if (key_pressed(KEY_2)) { if (correct_index == 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak("Неверно! " + (correct_index+1), true); return false; } }
+			if (key_pressed(KEY_3)) { if (correct_index == 2) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak("Неверно! " + (correct_index+1), true); return false; } }
+			if (key_pressed(KEY_4)) { if (correct_index == 3) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak("Неверно! " + (correct_index+1), true); return false; } }
+			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+		}
+		return false;
+	}
+
+	// Variant 2: find the odd one out (3 same, 1 different)
+	bool crack_odd_one_out(int difficulty) {
+		audio.speak(tr("Odd one out. Three are identical, one is different. Find it.", "Лишний звук. Три одинаковых, один другой. Найдите лишний."), true);
+		wait(500);
+		int base_freq = 400 + difficulty * 60;
+		int[] options;
+		options.resize(4);
+		int odd_index = random(0, 3);
+		for (int i = 0; i < 4; i++) {
+			options[i] = i == odd_index ? base_freq + 150 + random(0, 2) * 50 : base_freq;
+		}
+		audio.speak(tr("Listen:", "Слушайте:"), true);
+		wait(200);
+		for (int i = 0; i < 4; i++) { audio.beep(options[i], 300); wait(250); }
+		wait(200);
+		audio.speak(tr("Enter — repeat, 1-4 — the odd one?", "Enter — повторить, 1-4 — лишний?"), false);
+		if (is_touch_ui()) {
+			audio.speak(tr("Choose the odd one.", "Выберите лишний."), true);
+			int ans = touch_digit_input(4);
+			if (ans < 0) return false;
+			if (ans == odd_index + 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; }
+			audio.error_beep();
+			audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index + 1), true);
+			return false;
+		}
+		while (true) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_RETURN)) { for (int i = 0; i < 4; i++) { audio.beep(options[i], 300); wait(250); } audio.speak(tr("1-4?", "1-4?"), false); }
+			if (key_pressed(KEY_1)) { if (odd_index == 0) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index+1), true); return false; } }
+			if (key_pressed(KEY_2)) { if (odd_index == 1) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index+1), true); return false; } }
+			if (key_pressed(KEY_3)) { if (odd_index == 2) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index+1), true); return false; } }
+			if (key_pressed(KEY_4)) { if (odd_index == 3) { audio.success_beep(); audio.speak(tr("Correct!", "Верно!"), true); return true; } else { audio.error_beep(); audio.speak(tr("No. It was number ", "Нет. Лишний ") + (odd_index+1), true); return false; } }
+			if (key_pressed(KEY_ESCAPE)) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+		}
+		return false;
+	}
+
+	// Variant 3: order the tones from low to high
+	bool crack_order_tones(int difficulty) {
+		audio.speak(tr("Tone sorting. 3 tones will play. Name them from lowest to highest.", "Сортировка тонов. Прозвучат 3 тона. Назовите их по порядку от низкого к высокому."), true);
+		wait(500);
+		int count = 3;
+		int[] freqs;
+		for (int i = 0; i < count; i++) {
+			int f = 400 + difficulty * 50 + i * 80 + random(0, 1) * 30;
+			freqs.insert_last(f);
+		}
+		// Shuffle
+		for (int i = count - 1; i > 0; i--) {
+			int j = random(0, i);
+			int tmp = freqs[i]; freqs[i] = freqs[j]; freqs[j] = tmp;
+		}
+		int[] sorted;
+		for (int i = 0; i < count; i++) sorted.insert_last(freqs[i]);
+		// Bubble sort for reference
+		for (int i = 0; i < count; i++) {
+			for (int j = 0; j < count - i - 1; j++) {
+				if (sorted[j] > sorted[j+1]) { int t = sorted[j]; sorted[j] = sorted[j+1]; sorted[j+1] = t; }
+			}
+		}
+		audio.speak(tr("Tones:", "Тоны:"), true);
+		for (int i = 0; i < count; i++) { audio.beep(float(freqs[i]), 350); wait(300); }
+		wait(200);
+		audio.speak(tr("Enter the tones from low to high. 1-3.", "Введите тоны от низкого к высокому. 1-3."), true);
+		int[] answer;
+		while (answer.length() < 3) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_ESCAPE) && !is_touch_ui()) { audio.speak(tr("Cancelled", "Отменено"), true); return false; }
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+			int p = 0;
+			if (is_touch_ui()) {
+				p = touch_digit_input(3);
+				if (p < 0) return false;
+			} else {
+				if (key_pressed(KEY_1)) p = 1;
+				else if (key_pressed(KEY_2)) p = 2;
+				else if (key_pressed(KEY_3)) p = 3;
+			}
+			if (p > 0) {
+				answer.insert_last(p);
+				audio.speak("" + p, true);
+				wait(150);
+			}
+		}
+		// Check: answer positions correspond to sorted freqs indices
+		bool correct = true;
+		for (int i = 0; i < count; i++) {
+			if (freqs[answer[i]-1] != sorted[i]) { correct = false; break; }
+		}
+		if (correct) { audio.success_beep(); audio.speak(tr("Correct! Encryption cracked.", "Верно! Шифрование взломано."), true); return true; }
+		else { audio.error_beep(); audio.speak(tr("Wrong order. Crack failed.", "Неверный порядок. Взлом не удался."), true); return false; }
+	}
+
+	// Firewall bypass mini-game: listen to spoken digits, repeat them
+	bool firewall_bypass(int difficulty) {
+		audio.speak(tr("Bypass. Listen to the code sequence.", "Обход защиты. Слушайте кодовую последовательность."), true);
+		wait(300);
+
+		int seq_len = 4 + difficulty;
+		int[] seq;
+		for (int i = 0; i < seq_len; i++) {
+			seq.insert_last(random(1, 4));
+		}
+
+		audio.speak(tr("Remember:", "Запоминайте:"), true);
+		wait(200);
+		for (int i = 0; i < seq_len; i++) {
+			audio.speak("" + seq[i], true);
+			wait(300);
+		}
+		wait(300);
+		audio.speak(tr("Repeat the sequence using 1-4. For example: 1, 3, 2, 4. Begin.", "Повторите последовательность цифрами 1-4. Например: 1, 3, 2, 4. Начинайте."), true);
+		wait(300);
+
+		int pos = 0;
+
+		while (pos < seq_len) {
+			wait(5);
+g_touch.monitor();
+			if (key_pressed(KEY_ESCAPE) && !is_touch_ui()) {
+				audio.speak(tr("Bypass cancelled", "Обход отменён"), true);
+				return false;
+			}
+			if (key_pressed(KEY_LEFT)) { audio.history_back(); }
+			if (key_pressed(KEY_RIGHT)) { audio.history_forward(); }
+
+			int pressed = 0;
+			if (is_touch_ui()) {
+				pressed = touch_digit_input(4);
+				if (pressed < 0) return false;
+			} else {
+				if (key_pressed(KEY_1)) pressed = 1;
+				else if (key_pressed(KEY_2)) pressed = 2;
+				else if (key_pressed(KEY_3)) pressed = 3;
+				else if (key_pressed(KEY_4)) pressed = 4;
+			}
+
+			if (pressed > 0) {
+				if (pressed == seq[pos]) {
+					audio.success_beep();
+					audio.speak("" + pressed + tr(" — correct", " — верно"), true);
+					pos++;
+				} else {
+					audio.error_beep();
+					audio.speak("" + pressed + tr(" — wrong!", " — неверно!"), true);
+					wait(200);
+					audio.speak(tr("Sequence reset. Start over.", "Последовательность сброшена. Начинайте заново."), true);
+					pos = 0;
+					for (int i = 0; i < seq_len; i++) {
+						audio.speak("" + seq[i], true);
+						wait(250);
+					}
+audio.speak(tr("Repeat.", "Повторите."), true);
+			}				wait(150);
+			}
+		}
+
+		audio.success_beep();
+		audio.speak(tr("Protection bypassed! Access granted.", "Защита обойдена! Доступ получен."), true);
+		return true;
+	}
+
+	void alert_ids() {
+		audio.alert_beep();
+		audio.speak(tr("Warning! IDS detected an anomaly!", "Внимание! IDS зафиксировала аномалию!"), false);
+	}
+
+	// Port scan: radar-style scanning with increasing pitch
+	void port_scan(const string[]&in ports) {
+		int[] well_known = {22, 80, 443, 3306, 8080, 8443};
+		audio.speak(tr("Starting the port scanner.", "Запуск сканера портов."), true);
+		audio.power_up();
+		wait(400);
+
+		audio.speak(tr("Scanning. Listen for echoes.", "Сканирование. Слушайте эхосигналы."), true);
+		wait(300);
+
+		for (uint i = 0; i < ports.length(); i++) {
+			int port = parse_int(ports[i]);
+			int base_freq = 300 + (port % 25) * 20;
+			float progress = float(i + 1) / float(ports.length());
+
+			for (int sweep = 0; sweep < 3; sweep++) {
+				int s_freq = base_freq + sweep * 100;
+				if (s_freq > 1100) s_freq = 1100;
+				audio.beep(float(s_freq), 60);
+				wait(60);
+			}
+
+			bool is_well_known = false;
+			for (int w = 0; w < int(well_known.length()); w++) {
+				if (port == well_known[w]) { is_well_known = true; break; }
+			}
+
+			if (is_well_known) {
+				audio.alert_beep();
+				audio.speak(tr("Port ", "Порт ") + port + " — известная служба!", true);
+			} else {
+				audio.beep(float(base_freq + 200), 100);
+				audio.speak(tr("Port ", "Порт ") + port, true);
+			}
+			wait(150);
+		}
+
+		audio.success_beep();
+		audio.speak(tr("Scan complete. Found ", "Сканирование завершено. Найдено ") + ports.length() + tr(" open ports.", " открытых портов."), false);
+		wait(200);
+		audio.speak(tr("Run enum for a detailed listing.", "Для перечисления выполните enum."), false);
+	}
+
+	// Port scan: radar-style scanning with increasing pitch
+	void port_scan(int port_count) {
+		int[] well_known = {22, 80, 443, 3306, 8080, 8443};
+		audio.speak(tr("Starting the port scanner.", "Запуск сканера портов."), true);
+		audio.power_up();
+		wait(400);
+
+		int[] found_ports;
+		for (int i = 0; i < port_count; i++) {
+			int port = 1024 + (i * 137 + random(0, 100)) % 64511;
+			found_ports.insert_last(port);
+		}
+
+		audio.speak(tr("Scanning. Listen for echoes.", "Сканирование. Слушайте эхосигналы."), true);
+		wait(300);
+
+		for (int i = 0; i < port_count; i++) {
+			int port = found_ports[i];
+			int base_freq = 300 + (port % 25) * 20;
+			float progress = float(i + 1) / float(port_count);
+
+			for (int sweep = 0; sweep < 3; sweep++) {
+				int s_freq = base_freq + sweep * 100;
+				if (s_freq > 1100) s_freq = 1100;
+				audio.beep(float(s_freq), 60);
+				wait(60);
+			}
+
+			bool is_well_known = false;
+			for (int w = 0; w < int(well_known.length()); w++) {
+				if (port == well_known[w]) { is_well_known = true; break; }
+			}
+
+			if (is_well_known) {
+				audio.alert_beep();
+				audio.speak(tr("Port ", "Порт ") + port + " — известная служба!", true);
+			} else {
+				audio.beep(float(base_freq + 200), 100);
+				audio.speak(tr("Port ", "Порт ") + port, true);
+			}
+			wait(150);
+		}
+
+		audio.success_beep();
+		audio.speak(tr("Scan complete. Found ", "Сканирование завершено. Найдено ") + port_count + tr(" open ports.", " открытых портов."), false);
+		wait(200);
+		audio.speak(tr("Run enum for a detailed listing.", "Для перечисления выполните enum."), false);
+	}
+};

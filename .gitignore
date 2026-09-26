@@ -6,3 +6,10 @@ t2e.txt
 t2o.txt
 tse.txt
 tso.txt
+dist/
+release/
+cross/
+main.exe
+game.dat
+tools/_*
+hacksim_settings.txt
