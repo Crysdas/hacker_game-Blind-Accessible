@@ -1,0 +1,121 @@
+/* src/security.nvgt
+ *
+ * Anti-tamper / anti-cheat layer for Hacker Simulator: Zero Day (Windows build).
+ *
+ * Three layers:
+ *  1. The AES pack key is never stored as a readable string. It is reassembled
+ *     at runtime from XOR-masked byte fragments and validated against a fixed
+ *     SHA-256 digest, so a simple strings/hex scan of the executable cannot
+ *     recover it and the encrypted sound pack cannot be decrypted externally.
+ *  2. NVGT's built-in sensors are polled every frame: is_debugger_present(),
+ *     memory_scan_detected (someone reading the game's address space, e.g.
+ *     Cheat Engine) and speed_hack_detected (timer hooking / speedhack).
+ *  3. A conservative response policy: a debugger is a hard fail; memory scans
+ *     and speed hacks need to persist for a short window before the game
+ *     refuses to run, so stray antivirus probes cannot lock out real players.
+ */
+
+class SecurityGuard {
+	private bool key_prepared;      // pack key successfully derived & verified
+	private string cached_key;      // verified key, kept only in memory
+	private int debugger_hits;
+	private int memory_strikes;     // consecutive frames with memory scan seen
+	private int speed_strikes;      // consecutive frames with speed hack seen
+	private bool triggered;
+	private string trigger_reason;
+
+	SecurityGuard() {
+		key_prepared = false;
+		cached_key = "";
+		debugger_hits = 0;
+		memory_strikes = 0;
+		speed_strikes = 0;
+		triggered = false;
+		trigger_reason = "";
+	}
+
+	// Rebuild the pack key from masked fragments. Both fragments are masked
+	// with the same byte mask; the digest gate proves the reconstruction is
+	// correct (the key that unlocks the pack is exactly this one).
+	string derive_asset_key() {
+		if (key_prepared) return cached_key;
+		// bytes of the key XOR 0x5A, split into two shuffled halves
+		uint8[] h1 = {106,62,59,35,119,52,44,61,46};
+		uint8[] h2 = {119,104,106,104,108,119,49,63,35};
+		string k = "";
+		for (uint i = 0; i < h1.length(); i++) {
+			k += ascii_to_character(h1[i] ^ 0x5A);
+		}
+		for (uint i = 0; i < h2.length(); i++) {
+			k += ascii_to_character(h2[i] ^ 0x5A);
+		}
+		// fixed digest of the valid key
+		if (string_hash_sha256(k) == "d327c9787f99f762e0facfce28f0d3e9abfbb5f8082963f9f773fca73ecbb520") {
+			cached_key = k;
+			key_prepared = true;
+			return k;
+		}
+		return "";
+	}
+
+	bool key_ok() {
+		return key_prepared;
+	}
+
+	// Polls the engine sensors. Returns:
+	//  0 - no violation
+	//  1 - debugger attached (immediate fail)
+	//  2 - persistent address-space scanning (memory hack)
+	//  3 - persistent timer/speed hack
+	int check_tamper() {
+		if (is_debugger_present()) {
+			debugger_hits++;
+			if (debugger_hits >= 2 || !triggered) {
+				triggered = true;
+				trigger_reason = "debugger";
+				return 1;
+			}
+			return 0;
+		}
+		debugger_hits = 0;
+
+		if (memory_scan_detected.test()) {
+			memory_strikes++;
+			if (memory_strikes > 180) {   // ~0.9 s of continuous scanning
+				triggered = true;
+				trigger_reason = "memscan";
+				return 2;
+			}
+		} else if (memory_strikes > 0) {
+			memory_strikes--;
+		}
+
+		if (speed_hack_detected.test()) {
+			speed_strikes++;
+			if (speed_strikes > 120) {    // ~0.6 s of continuous speedhack
+				triggered = true;
+				trigger_reason = "speedhack";
+				return 3;
+			}
+		} else if (speed_strikes > 0) {
+			speed_strikes--;
+		}
+		return 0;
+	}
+
+	bool is_triggered() {
+		return triggered;
+	}
+
+	string reason() {
+		return trigger_reason;
+	}
+
+	void reset() {
+		debugger_hits = 0;
+		memory_strikes = 0;
+		speed_strikes = 0;
+		triggered = false;
+		trigger_reason = "";
+	}
+}

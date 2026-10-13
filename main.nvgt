@@ -77,6 +77,7 @@ string rank_title(int n) {
 #include "src/data.nvgt"
 #include "src/log.nvgt"
 #include "src/commands.nvgt"
+#include "src/security.nvgt"
 #pragma asset "sounds"
 #pragma compiled_basename "hacksim"
 
@@ -114,7 +115,7 @@ void init_settings_path() {
 		g_settings_path = SETTINGS_FILE;
 	}
 }
-const string GAME_VERSION = "1.7";
+const string GAME_VERSION = "1.8";
 const string UPDATE_VERSION_URL = "https://raw.githubusercontent.com/Crysdas/hacker_game-Blind-Accessible/main/updates/version.txt";
 const string UPDATE_ZIP_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.zip";
 const string UPDATE_APK_URL = "https://github.com/Crysdas/hacker_game-Blind-Accessible/releases/latest/download/hacksim.apk";
@@ -138,6 +139,7 @@ class HackerGame {
 	private Sandbox@ sandbox;
 	private Tools@ tools;
 	private Logger@ log;
+	private SecurityGuard@ guard;
 
 	private FocusArea focus;
 	private GameMode mode;
@@ -164,6 +166,7 @@ class HackerGame {
 		@log = Logger();
 		log.start();
 		log.log("HackerGame constructor");
+		@guard = SecurityGuard();
 
 		// PACK_BOOTSTRAP
 
@@ -240,12 +243,14 @@ class HackerGame {
 	void run() {
 		log.log("run()");
 		try {
+			if (security_boot_check()) return;
 			show_splash();
 			show_title();
 
 			while (running) {
 				wait(5);
 g_touch.monitor();
+				security_tick();
 				handle_input();
 			}
 		} catch {
@@ -255,6 +260,37 @@ g_touch.monitor();
 		if (@music_player != null) music_player.stop();
 		destroy_window();
 		log.stop();
+	}
+
+	// Called once before the game boots: refuse to run under a debugger.
+	private bool security_boot_check() {
+		if (@guard == null) return false;
+		int v = guard.check_tamper();
+		if (v == 0) return false;
+		log.log("SECURITY boot block: " + guard.reason());
+		::speak(tr("Protection triggered. The game will exit.", "Сработала защита. Игра завершит работу."), true);
+		wait(700);
+		return true;
+	}
+
+	// Called every frame after wait(): polls the anti-cheat sensors and shuts
+	// the game down on a confirmed violation.
+	private void security_tick() {
+		if (@guard == null) return;
+		int v = guard.check_tamper();
+		if (v == 0) return;
+		if (v == 1) {
+			log.log("SECURITY: debugger detected");
+			::speak(tr("Debugger detected. The game will exit.", "Обнаружен отладчик. Игра завершит работу."), true);
+		} else if (v == 2) {
+			log.log("SECURITY: memory scan detected");
+			::speak(tr("Memory scanning detected. The game will exit.", "Обнаружено сканирование памяти. Игра завершит работу."), true);
+		} else if (v == 3) {
+			log.log("SECURITY: speed hack detected");
+			::speak(tr("Speed hack detected. The game will exit.", "Обнаружен разгон игры. Игра завершит работу."), true);
+		}
+		wait(700);
+		running = false;
 	}
 
 private void setup_touch() {

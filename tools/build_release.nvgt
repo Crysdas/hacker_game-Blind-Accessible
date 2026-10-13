@@ -85,19 +85,20 @@ void main() {
 
 	string main = file_get_contents(root + "main.nvgt");
 	main = main.replace("#pragma asset \"sounds\"", "#pragma embed \"game.dat\"");
-	main = main.replace("// PACK_CONST", "const string GAME_ASSET_KEY = \"0day-nvgt-2026-key\";");
+	main = main.replace("// PACK_CONST", "// asset key is derived at runtime by src/security.nvgt; no literal is kept here");
 	main = main.replace("// PACK_FIELD", "private pack_file@ assets;");
 	string block = "pack_file@ p = pack_file();\n";
-	block += "if (p.open(\"*\", GAME_ASSET_KEY)) {\n";
+	block += "string _asset_key = guard.derive_asset_key();\n";
+	block += "if (_asset_key != \"\" && p.open(\"*\", _asset_key)) {\n";
 	block += "@assets = @p;\n";
 	block += "@sound_default_pack = @p;\n";
 	block += "log.log(\"Assets: embedded encrypted pack\");\n";
-	block += "} else if (p.open(\"game.dat\", GAME_ASSET_KEY)) {\n";
+	block += "} else if (_asset_key != \"\" && p.open(\"game.dat\", _asset_key)) {\n";
 	block += "@assets = @p;\n";
 	block += "@sound_default_pack = @p;\n";
 	block += "log.log(\"Assets: game.dat encrypted pack\");\n";
 	block += "} else {\n";
-	block += "log.log(\"Assets: loose files\");\n";
+	block += "log.log(\"Assets: unavailable or tampered pack\");\n";
 	block += "}\n";
 	main = main.replace("// PACK_BOOTSTRAP", block);
 	if (!file_put_contents(rel + "main.nvgt", main)) {
